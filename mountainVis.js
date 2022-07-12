@@ -1,3 +1,7 @@
+// Swap these out for different uses
+const pointsData = whitneyElevationData;
+const spotFeedID = "";
+
 // Render Mountain
 
 // param determines mountain data to render (ie '/peakTracker?location=whitney')
@@ -10,8 +14,7 @@ var viewport, renderer, camera, controls, particleDistance, centerPoint = {};
 
 var cube;
 
-// Reading json from an external file is a pain, so it's a non-dynamic js file
-const pointsData = whitneyElevationData;
+
 
 init();
 
@@ -73,3 +76,29 @@ function animate() {
 
     renderer.render(scene, camera);
 }
+
+function cleanPointData(pointsDataArray){
+    //Iterate over full data array, converting into points for mesh
+
+    //If point is identical elevation to either last evaluated point, or neighbor directly north
+    // interpolatePoint()
+}
+
+function interpolatePoint(index_x, index_y){
+    // Set value to average of neighbors E, W, N, and S
+
+    // This post-cleanup may end up causing odd diagonal ridges on the final map
+    // If that's the case, we can drop to a lower pointDensity and regenerate the initial map
+    // (Shawn if you end up doing that - make sure to manually tweak the peak elevation to be precise)
+}
+
+// Todo: Function to access cached points feed, only hitting Spot API if system clock has been at least 10 minutes since last access
+// (Let's not risk accidentally getting our feed rate-limited/shut down)
+// @param pollLimit : time in seconds between 
+// function getLatestTrackingData(pollLimit)
+
+// Todo: Function to actually grab data from feed (swap this method to add other GPS unit support)
+// function getRemoteFeedData()
+
+// Todo : Function to turn spot feed into generic points list (swap this to add other GPS unit support)
+// function normalizeSpotFeed(){}
