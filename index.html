@@ -1,13 +1,18 @@
 <html>
     <head>
-        <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js" integrity="sha512-334uBDwY0iZ2TklV1OtDtBW9vp7jjP7SWRzT7Ehu1fdtPIjTpCwTSFb8HI/YBau9L1/kRBEOALrS229Kry4yFQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-        <script defer src="mountainVis.js"></script>
-        <!-- <script defer src="generateMountain.js"></script> -->
-        <script async
-            src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC7PR8dtgPtj0WsyQihYxKms8N6eN-OP9s&libraries=geometry">
-        </script>
+        <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r122/three.min.js"  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
         <script defer src="elevationData/whitney.js"></script>
+        <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+        <script type="importmap">
+            {
+              "imports": {
+                "three": "https://unpkg.com/three/build/three.module.js"
+              }
+            }
+        </script>
+        <script type = "module" defer src="mountainVis.js"></script>
         <link rel="stylesheet" href="topo.css"/>
+
     </head>
     <body>
         <div id="viewport"></div>

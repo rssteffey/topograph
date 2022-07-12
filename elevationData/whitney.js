@@ -1,5 +1,7 @@
 whitneyElevationData = {
 "map_name" : "whitney",
+"maxElevation" : 4424,
+"minElevation" : 2386,
 "points" : [
     [
         {

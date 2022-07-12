@@ -38,9 +38,9 @@ Replace the import near the top of `mountainVis.js` with your new data source
 
     const pointsData = <name of your json object>;
 
-The tracking points are sourced from a [Spot™ Satellite Tracker XML feed](https://www.findmespot.com/en-us/support/spot-x/get-help/general/spot-api-support).  The feed ID can also be replace near the top of `mountainVis.js` 
+The tracking points are sourced from a [Spot™ Satellite Tracker XML feed](https://www.findmespot.com/en-us/support/spot-x/get-help/general/spot-api-support).  The feed ID can also be replaced while you're already here swapping out things in `mountainVis.js`
 
 
 ## Misc Notes
 
-I have naively left my Google Maps API key in the script import tag, but I will almost certainly deactivate it after this project since I'm just using it to generate these initial point clouds, so replace it with your own.
+I have naively left my Google Maps API key in the script import tag, but I will almost certainly deactivate it after this project since I'm just using it to generate these initial point clouds. So replace it with your own.

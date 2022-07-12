@@ -1,6 +1,17 @@
+import * as THREE from 'three';
+import { ConvexGeometry } from 'https://unpkg.com/three/examples/jsm/geometries/ConvexGeometry.js';
+import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls.js';
+
 // Swap these out for different uses
 const pointsData = whitneyElevationData;
 const spotFeedID = "";
+
+const GRID_X_OFFSET = 0.1;
+const GRID_Y_OFFSET = -0.1;
+const ELEVATION_MODIFIER = 0.0008;
+
+const lowColor = 0x000000;
+const highColor = 0xFFFFFF;
 
 // Render Mountain
 
@@ -14,6 +25,8 @@ var viewport, renderer, camera, controls, particleDistance, centerPoint = {};
 
 var cube;
 
+var minElevation = pointsData.minElevation || 9000;   // taller than Everest, submit a PR if you discovered something taller
+var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see above
 
 
 init();
@@ -26,35 +39,54 @@ function init(){
     viewport = document.getElementById('viewport');
 
     renderer = new THREE.WebGLRenderer();
-    //renderer = new THREE.WebGLRenderer({ antialias: 0, clearAlpha: 0, alpha:true });
+    renderer = new THREE.WebGLRenderer({ antialias: 0, clearAlpha: 0, alpha:true });
     renderer.setSize(WIDTH, HEIGHT);
-    //renderer.setClearColor( 0x000000, 0 ); // the default
+    renderer.setClearColor( 0x000000, 0 ); // the default
     //renderer.shadowMap.enabled = true;
     viewport.appendChild(renderer.domElement);
     window.addEventListener( 'resize', onWindowResize, false );
     
-    scene.fog = new THREE.Fog( 0x111111, 22000, 25000 );
+    //scene.fog = new THREE.Fog( 0x111111, 22000, 25000 );
 
     camera = new THREE.PerspectiveCamera(75, WIDTH / HEIGHT, 0.1, 1000);
+    controls = new OrbitControls( camera, renderer.domElement );
     //camera.position.set(0, 10000, -20000 );
     scene.add(camera);
 
-    //createGroundPlane();
     createMountain();
+
+    const directionalLight = new THREE.DirectionalLight( 0xffffff, 1.0 );
+    scene.add( directionalLight );
+
     animate();
 }
 
 function createMountain(){
 
-    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-    const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-    cube = new THREE.Mesh( geometry, material );
-    scene.add( cube );
+    //const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+    const material = new THREE.MeshBasicMaterial( { vertexColors: true } );
+    const pointsMaterial = new THREE.PointsMaterial({size: 0.1, vertexColors: true});
+    const wireMaterial = new THREE.LineBasicMaterial({
+        color: 0xffffff,
+	    linewidth: 0.001
+    });
+
+    var vertices_array = [];
+    vertices_array = pointsToTriangles(pointsData);
+
+    var pointGeometry = new THREE.BufferGeometry();
+
+    pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array.points, 3 ));
+    pointGeometry.setAttribute('color', new THREE.Float32BufferAttribute( vertices_array.colors, 3 ));
+
+    var pointsMesh = new THREE.Points(pointGeometry, pointsMaterial);
+
+    var mesh = new THREE.Mesh( pointGeometry, material );
+
+    scene.add( mesh );
 
     camera.position.z = 5;
-
-    //Interpolate duplicates to avoid rice paddies (The original data is a stepped topo source, so many sampled points come from the same elevation contours)
-    cleanPointData(pointsData);
+    controls.update();
 
     // var vertices_array = []
     // var mesh = new THREE.ConvexGeometry( vertices_array );
@@ -71,18 +103,106 @@ function onWindowResize( event ) {
 function animate() {
     requestAnimationFrame(animate);
 
-    cube.rotation.x += 0.01;
-	cube.rotation.y += 0.01;
+    controls.update();
 
     renderer.render(scene, camera);
 }
 
-function cleanPointData(pointsDataArray){
-    //Iterate over full data array, converting into points for mesh
+// Naive points -> vertex implementation that doesn't account for tris (useful if we end up using a point cloud visual)
+function pointsToVertices(pointDataArray){
+    var xSize = pointDataArray.points.length;
+    var ySize = pointDataArray.points[0].length;
 
-    //If point is identical elevation to either last evaluated point, or neighbor directly north
-    // interpolatePoint()
+    var return_array = [];
+
+    for(var x = 0; x < pointDataArray.points.length; x++){
+        var row = pointDataArray.points[x];
+        for(var y = 0; y < row.length; y++){
+            return_array.push((y * -0.1), (x * 0.1), row[y].elevation * .0008 );
+        }
+    }
 }
+
+// Convert the grid of points to triangle-based vertex data (with duplicate points for shared vertexes)
+    // Y = N/S
+    // X = E/W
+function pointsToTriangles(pointDataArray){
+    var ySize = pointDataArray.points.length;
+    var xSize = pointDataArray.points[0].length;
+
+    var return_point_array = [];
+    var return_color_array = [];
+    var return_scale_array = []
+
+    for(var y = 0; y < pointDataArray.points.length - 1; y++){
+        var row = pointDataArray.points[y];
+        var nextRow = pointDataArray.points[y+1];
+        for(var x = 0; x < row.length - 1; x++){
+            // Triangle 1 ◣
+            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), row[x].elevation * ELEVATION_MODIFIER );  // a
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), nextRow[x+1].elevation * ELEVATION_MODIFIER ); // ab
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), (y * GRID_Y_OFFSET), row[x+1].elevation * ELEVATION_MODIFIER ); // b
+            
+
+            var color1 = getColorFromElevation(row[x].elevation); // a
+            var color2 = getColorFromElevation(row[x+1].elevation); // b
+            var color3 = getColorFromElevation(nextRow[x+1].elevation); // ab
+
+            return_color_array.push(color1.r, color1.g, color1.b); // a
+            return_color_array.push(color3.r, color3.g, color3.b); // ab
+            return_color_array.push(color2.r, color2.g, color2.b); // b
+            
+
+            return_scale_array.push(1, 1, 1);
+            
+            // Triangle 2 ◥
+            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), row[x].elevation * ELEVATION_MODIFIER ); // a
+            return_point_array.push((x * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), nextRow[x].elevation * ELEVATION_MODIFIER ); // b
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), nextRow[x+1].elevation * ELEVATION_MODIFIER ); //ab
+            
+
+            color1 = getColorFromElevation(row[x].elevation); // a
+            color2 = getColorFromElevation(nextRow[x+1].elevation); // ab
+            color3 = getColorFromElevation(nextRow[x].elevation); // b
+
+            return_color_array.push(color1.r, color1.g, color1.b); // a
+            
+            return_color_array.push(color3.r, color3.g, color3.b); // b
+            return_color_array.push(color2.r, color2.g, color2.b); // ab
+
+            return_scale_array.push(1, 1, 1);
+        }
+    }
+
+    return { points: return_point_array, colors: return_color_array, scale: return_scale_array };
+}
+
+function getColorFromElevation(elevation){
+    // Calculate ratio of elevation from total range (elev - minElev) / (maxElev - minElev)
+    var ratio = (elevation - minElevation) / (maxElevation - minElevation);
+    var color = new THREE.Color(lerpColor(lowColor, highColor, ratio));
+
+    if(elevation * 3.28084 > 14000){
+        return new THREE.Color(0xFF0000);
+    }
+    return color;
+}
+
+function lerpColor(pFrom, pTo, pRatio) {
+    const ar = (pFrom & 0xFF0000) >> 16,
+          ag = (pFrom & 0x00FF00) >> 8,
+          ab = (pFrom & 0x0000FF),
+
+          br = (pTo & 0xFF0000) >> 16,
+          bg = (pTo & 0x00FF00) >> 8,
+          bb = (pTo & 0x0000FF),
+
+          rr = ar + pRatio * (br - ar),
+          rg = ag + pRatio * (bg - ag),
+          rb = ab + pRatio * (bb - ab);
+
+    return (rr << 16) + (rg << 8) + (rb | 0);
+};
 
 function interpolatePoint(index_x, index_y){
     // Set value to average of neighbors E, W, N, and S
