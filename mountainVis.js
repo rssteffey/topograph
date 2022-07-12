@@ -10,6 +10,8 @@ const GRID_X_OFFSET = 0.1;
 const GRID_Y_OFFSET = -0.1;
 const ELEVATION_MODIFIER = 0.0008;
 
+const SMOOTHING_FACTOR = 0.2;
+
 const lowColor = 0x000000;
 const highColor = 0xFFFFFF;
 
@@ -213,54 +215,14 @@ function cleanPointsData(arrayToClean){
     for(var y = 0; y < arrayToClean.points.length - 1; y++){
         var points = arrayToClean.points;
         for(var x = 0; x < points[y].length - 1; x++){
-            elevationArray.points[y][x].elevation = interpolatePointDiagonally(y, x, points[y][x].elevation)
+            elevationArray.points[y][x].elevation = interpolatePoint(y, x, points[y][x].elevation)
         }
     }
     return elevationArray;
 }
 
 function interpolatePoint(index_y, index_x, elevation){
-    const y_size = pointsData.points.length;
-    const x_size = pointsData.points[0].length
-
-    // Set value to average of neighbors E, W, N, and S
-    var eastNeighbor  = index_y > 0            ? pointsData.points[index_y - 1][index_x].elevation : elevation;
-    var westNeighbor  = index_y < (y_size - 1) ? pointsData.points[index_y + 1][index_x].elevation : elevation;
-    var northNeighbor = index_x > 0            ? pointsData.points[index_y][index_x - 1].elevation : elevation;
-    var southNeighbor = index_x < (x_size - 1) ? pointsData.points[index_y][index_x + 1].elevation : elevation;
-
-    // Naive average - too smooth for me to love the resulting mountain profile
-    var averagedElev =  ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor ) / 4.0;
-
-    // Alternate average, that only smooths if neighbors are the same value
-    var determinateAverage;
-
-    var smoothingWeight = 0.1;
-    var smoothingWeightB = 1;
-
-    var eastSame  = index_y > 0            && pointsData.points[index_y - 1][index_x].elevation == elevation ? smoothingWeight : 1;
-    var westSame  = index_y < (y_size - 1) && pointsData.points[index_y + 1][index_x].elevation == elevation ? smoothingWeight : 1;
-    var northSame = index_x > 0            && pointsData.points[index_y][index_x - 1].elevation == elevation ? smoothingWeight : 1;
-    var southSame = index_x < (x_size - 1) && pointsData.points[index_y][index_x + 1].elevation == elevation ? smoothingWeight : 1;
-
-    var sameSum = eastSame  + westSame + northSame + southSame;
-
-    // 4 means no neighbors are the same weight, don't smooth
-    if(sameSum != (smoothingWeight * 4) && sameSum != 4){
-        return ( (eastNeighbor * eastSame ) + (westNeighbor * westSame) + (northNeighbor * northSame) + (southNeighbor * southSame) ) / (sameSum);
-    } else {
-        // smooth weighted highly for the given elevation
-        return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + ( elevation * smoothingWeightB))  / (4.0 + smoothingWeightB);
-    }
-
-    // This post-cleanup may end up causing odd diagonal ridges on the final map
-    // If that's the case, we can drop to a lower pointDensity and regenerate the initial map
-    // (Shawn if you end up doing that - make sure to manually tweak the peak elevation to be precise)
-}
-
-function interpolatePointDiagonally(index_y, index_x, elevation){
-    const smoothingWeight = 0.0;
-    const smoothingWeightB = 7;
+    const smoothingWeight = 1.0 / (SMOOTHING_FACTOR + 0.000001);
 
     const y_size = pointsData.points.length;
     const x_size = pointsData.points[0].length
@@ -276,7 +238,7 @@ function interpolatePointDiagonally(index_y, index_x, elevation){
     var SENeighbor    = index_y > 0  && index_x < (x_size - 1)             ? pointsData.points[index_y - 1][index_x + 1].elevation : elevation;
     var SWNeighbor    = index_y < (y_size - 1)  && index_x < (x_size - 1)  ? pointsData.points[index_y + 1][index_x + 1].elevation : elevation;
 
-    return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + NENeighbor + NWNeighbor + SENeighbor + SWNeighbor + ( elevation * smoothingWeightB))  / (8.0 + smoothingWeightB);
+    return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + NENeighbor + NWNeighbor + SENeighbor + SWNeighbor + ( elevation * smoothingWeight))  / (8.0 + smoothingWeight);
 }
 
 // Todo: Function to access cached points feed, only hitting Spot API if system clock has been at least 10 minutes since last access
