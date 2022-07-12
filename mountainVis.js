@@ -72,7 +72,8 @@ function createMountain(){
     });
 
     var vertices_array = [];
-    vertices_array = pointsToTriangles(pointsData);
+    var cleanArray = cleanPointsData(pointsData);
+    vertices_array = pointsToTriangles(cleanArray);
 
     var pointGeometry = new THREE.BufferGeometry();
 
@@ -135,18 +136,17 @@ function pointsToTriangles(pointDataArray){
     var return_scale_array = []
 
     for(var y = 0; y < pointDataArray.points.length - 1; y++){
-        var row = pointDataArray.points[y];
-        var nextRow = pointDataArray.points[y+1];
-        for(var x = 0; x < row.length - 1; x++){
+        var points = pointDataArray.points;
+        for(var x = 0; x < points[y].length - 1; x++){
             // Triangle 1 ◣
-            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), row[x].elevation * ELEVATION_MODIFIER );  // a
-            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), nextRow[x+1].elevation * ELEVATION_MODIFIER ); // ab
-            return_point_array.push(((x + 1) * GRID_X_OFFSET), (y * GRID_Y_OFFSET), row[x+1].elevation * ELEVATION_MODIFIER ); // b
+            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x].elevation * ELEVATION_MODIFIER );  // a
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x+1].elevation * ELEVATION_MODIFIER ); // ab
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x+1].elevation * ELEVATION_MODIFIER ); // b
             
 
-            var color1 = getColorFromElevation(row[x].elevation); // a
-            var color2 = getColorFromElevation(row[x+1].elevation); // b
-            var color3 = getColorFromElevation(nextRow[x+1].elevation); // ab
+            var color1 = getColorFromElevation(points[y][x].elevation); // a
+            var color2 = getColorFromElevation(points[y][x+1].elevation); // b
+            var color3 = getColorFromElevation(points[y+1][x+1].elevation); // ab
 
             return_color_array.push(color1.r, color1.g, color1.b); // a
             return_color_array.push(color3.r, color3.g, color3.b); // ab
@@ -156,14 +156,14 @@ function pointsToTriangles(pointDataArray){
             return_scale_array.push(1, 1, 1);
             
             // Triangle 2 ◥
-            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), row[x].elevation * ELEVATION_MODIFIER ); // a
-            return_point_array.push((x * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), nextRow[x].elevation * ELEVATION_MODIFIER ); // b
-            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), nextRow[x+1].elevation * ELEVATION_MODIFIER ); //ab
+            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x].elevation * ELEVATION_MODIFIER ); // a
+            return_point_array.push((x * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x].elevation * ELEVATION_MODIFIER ); // b
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x+1].elevation * ELEVATION_MODIFIER ); //ab
             
 
-            color1 = getColorFromElevation(row[x].elevation); // a
-            color2 = getColorFromElevation(nextRow[x+1].elevation); // ab
-            color3 = getColorFromElevation(nextRow[x].elevation); // b
+            color1 = getColorFromElevation(points[y][x].elevation); // a
+            color2 = getColorFromElevation(points[y+1][x+1].elevation); // ab
+            color3 = getColorFromElevation(points[y+1][x].elevation); // b
 
             return_color_array.push(color1.r, color1.g, color1.b); // a
             
@@ -173,6 +173,9 @@ function pointsToTriangles(pointDataArray){
             return_scale_array.push(1, 1, 1);
         }
     }
+
+    //Separate loop to add edge tris (enclose the bottom)
+
 
     return { points: return_point_array, colors: return_color_array, scale: return_scale_array };
 }
@@ -204,12 +207,76 @@ function lerpColor(pFrom, pTo, pRatio) {
     return (rr << 16) + (rg << 8) + (rb | 0);
 };
 
-function interpolatePoint(index_x, index_y){
+
+function cleanPointsData(arrayToClean){
+    var elevationArray = structuredClone(arrayToClean);
+    for(var y = 0; y < arrayToClean.points.length - 1; y++){
+        var points = arrayToClean.points;
+        for(var x = 0; x < points[y].length - 1; x++){
+            elevationArray.points[y][x].elevation = interpolatePointDiagonally(y, x, points[y][x].elevation)
+        }
+    }
+    return elevationArray;
+}
+
+function interpolatePoint(index_y, index_x, elevation){
+    const y_size = pointsData.points.length;
+    const x_size = pointsData.points[0].length
+
     // Set value to average of neighbors E, W, N, and S
+    var eastNeighbor  = index_y > 0            ? pointsData.points[index_y - 1][index_x].elevation : elevation;
+    var westNeighbor  = index_y < (y_size - 1) ? pointsData.points[index_y + 1][index_x].elevation : elevation;
+    var northNeighbor = index_x > 0            ? pointsData.points[index_y][index_x - 1].elevation : elevation;
+    var southNeighbor = index_x < (x_size - 1) ? pointsData.points[index_y][index_x + 1].elevation : elevation;
+
+    // Naive average - too smooth for me to love the resulting mountain profile
+    var averagedElev =  ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor ) / 4.0;
+
+    // Alternate average, that only smooths if neighbors are the same value
+    var determinateAverage;
+
+    var smoothingWeight = 0.1;
+    var smoothingWeightB = 1;
+
+    var eastSame  = index_y > 0            && pointsData.points[index_y - 1][index_x].elevation == elevation ? smoothingWeight : 1;
+    var westSame  = index_y < (y_size - 1) && pointsData.points[index_y + 1][index_x].elevation == elevation ? smoothingWeight : 1;
+    var northSame = index_x > 0            && pointsData.points[index_y][index_x - 1].elevation == elevation ? smoothingWeight : 1;
+    var southSame = index_x < (x_size - 1) && pointsData.points[index_y][index_x + 1].elevation == elevation ? smoothingWeight : 1;
+
+    var sameSum = eastSame  + westSame + northSame + southSame;
+
+    // 4 means no neighbors are the same weight, don't smooth
+    if(sameSum != (smoothingWeight * 4) && sameSum != 4){
+        return ( (eastNeighbor * eastSame ) + (westNeighbor * westSame) + (northNeighbor * northSame) + (southNeighbor * southSame) ) / (sameSum);
+    } else {
+        // smooth weighted highly for the given elevation
+        return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + ( elevation * smoothingWeightB))  / (4.0 + smoothingWeightB);
+    }
 
     // This post-cleanup may end up causing odd diagonal ridges on the final map
     // If that's the case, we can drop to a lower pointDensity and regenerate the initial map
     // (Shawn if you end up doing that - make sure to manually tweak the peak elevation to be precise)
+}
+
+function interpolatePointDiagonally(index_y, index_x, elevation){
+    const smoothingWeight = 0.0;
+    const smoothingWeightB = 7;
+
+    const y_size = pointsData.points.length;
+    const x_size = pointsData.points[0].length
+
+    // Set value to average of neighbors E, W, N, and S
+    var eastNeighbor  = index_y > 0            ? pointsData.points[index_y - 1][index_x].elevation : elevation;
+    var westNeighbor  = index_y < (y_size - 1) ? pointsData.points[index_y + 1][index_x].elevation : elevation;
+    var northNeighbor = index_x > 0            ? pointsData.points[index_y][index_x - 1].elevation : elevation;
+    var southNeighbor = index_x < (x_size - 1) ? pointsData.points[index_y][index_x + 1].elevation : elevation;
+
+    var NENeighbor    = index_y > 0  && index_x > 0                        ? pointsData.points[index_y - 1][index_x - 1].elevation : elevation;
+    var NWNeighbor    = index_y < (y_size - 1)  && index_x > 0             ? pointsData.points[index_y + 1][index_x - 1].elevation : elevation;
+    var SENeighbor    = index_y > 0  && index_x < (x_size - 1)             ? pointsData.points[index_y - 1][index_x + 1].elevation : elevation;
+    var SWNeighbor    = index_y < (y_size - 1)  && index_x < (x_size - 1)  ? pointsData.points[index_y + 1][index_x + 1].elevation : elevation;
+
+    return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + NENeighbor + NWNeighbor + SENeighbor + SWNeighbor + ( elevation * smoothingWeightB))  / (8.0 + smoothingWeightB);
 }
 
 // Todo: Function to access cached points feed, only hitting Spot API if system clock has been at least 10 minutes since last access
