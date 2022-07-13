@@ -12,8 +12,16 @@ const ELEVATION_MODIFIER = 0.0008;
 
 const SMOOTHING_FACTOR = 0.2;
 
-const lowColor = 0x000000;
-const highColor = 0xFFFFFF;
+// Color gradient transition points (useful for creating treelines, etc)
+const colorCutoff1 = 3200;
+const colorCutoff2 = 3800;
+
+const readableColors = [0x004400, 0x334400, 0xDDDDBB, 0xFFFFFF];
+const summerColors = [0x582a56, 0xb95263, 0xf89b59, 0xfafa6e];
+const miamiHeat = [0x2B3D41, 0x34b18f, 0x872BFF, 0xdc58d4];
+const timeNewRoman = [0x000000, 0x444444, 0xbbbbbb, 0xffffff];
+
+const colorScheme = readableColors;
 
 // Render Mountain
 
@@ -50,16 +58,25 @@ function init(){
     
     //scene.fog = new THREE.Fog( 0x111111, 22000, 25000 );
 
-    camera = new THREE.PerspectiveCamera(75, WIDTH / HEIGHT, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(50, WIDTH / HEIGHT, 0.1, 1000);
+    //camera.position  = new THREE.Vector3(3, 5, 5);
+    camera.position.y = 4;
+    camera.position.z = 5;
     controls = new OrbitControls( camera, renderer.domElement );
-    //camera.position.set(0, 10000, -20000 );
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.25;
+    // Restrict user from wiggling too much
+    //controls.maxAzimuthAngle = Math.PI/2;
+    //controls.minAzimuthAngle = - Math.PI/2;
+    controls.maxPolarAngle = Math.PI / 2;
+    controls.minPolarAngle = 0;
+    controls.minDistance = 1.0;
+    controls.maxDistance = 7.0;
+    controls.update();
+    
     scene.add(camera);
 
     createMountain();
-
-    const directionalLight = new THREE.DirectionalLight( 0xffffff, 1.0 );
-    scene.add( directionalLight );
-
     animate();
 }
 
@@ -85,11 +102,14 @@ function createMountain(){
     var pointsMesh = new THREE.Points(pointGeometry, pointsMaterial);
 
     var mesh = new THREE.Mesh( pointGeometry, material );
-
+    mesh.rotation.x = -1 * Math.PI / 2;
+    mesh.translateZ(-3);
+    mesh.translateX(-3);
+    mesh.translateY(2);
+    //mesh.rotation.set(new THREE.Vector3( 0, 0, - Math.PI / 2));
     scene.add( mesh );
 
-    camera.position.z = 5;
-    controls.update();
+    
 
     // var vertices_array = []
     // var mesh = new THREE.ConvexGeometry( vertices_array );
@@ -107,6 +127,7 @@ function animate() {
     requestAnimationFrame(animate);
 
     controls.update();
+    //console.log(camera.position);
 
     renderer.render(scene, camera);
 }
@@ -168,7 +189,6 @@ function pointsToTriangles(pointDataArray){
             color3 = getColorFromElevation(points[y+1][x].elevation); // b
 
             return_color_array.push(color1.r, color1.g, color1.b); // a
-            
             return_color_array.push(color3.r, color3.g, color3.b); // b
             return_color_array.push(color2.r, color2.g, color2.b); // ab
 
@@ -177,6 +197,7 @@ function pointsToTriangles(pointDataArray){
     }
 
     //Separate loop to add edge tris (enclose the bottom)
+    // Front and back edges
 
 
     return { points: return_point_array, colors: return_color_array, scale: return_scale_array };
@@ -184,13 +205,23 @@ function pointsToTriangles(pointDataArray){
 
 function getColorFromElevation(elevation){
     // Calculate ratio of elevation from total range (elev - minElev) / (maxElev - minElev)
-    var ratio = (elevation - minElevation) / (maxElevation - minElevation);
-    var color = new THREE.Color(lerpColor(lowColor, highColor, ratio));
-
-    if(elevation * 3.28084 > 14000){
-        return new THREE.Color(0xFF0000);
+    
+    if(elevation > colorCutoff2){
+        var ratio = (elevation - colorCutoff2) / (maxElevation - colorCutoff2);
+        return new THREE.Color(lerpColor(colorScheme[2], colorScheme[3], ratio));
     }
-    return color;
+
+    if(elevation > colorCutoff1){
+        var ratio = (elevation - colorCutoff1) / (colorCutoff2 - colorCutoff1);
+        return new THREE.Color(lerpColor(colorScheme[1], colorScheme[2], ratio));
+    }
+
+    var ratio = (elevation - minElevation) / (colorCutoff1 - minElevation);
+    return new THREE.Color(lerpColor(colorScheme[0], colorScheme[1], ratio));;
+}
+
+function metersToFeet(meters){
+    return meters * 3.28084;
 }
 
 function lerpColor(pFrom, pTo, pRatio) {
