@@ -432,9 +432,9 @@ function lerpColor(pFrom, pTo, pRatio) {
 
 function cleanPointsData(arrayToClean){
     var elevationArray = structuredClone(arrayToClean);
-    for(var y = 0; y < arrayToClean.points.length - 1; y++){
+    for(var y = 0; y < arrayToClean.points.length; y++){
         var points = arrayToClean.points;
-        for(var x = 0; x < points[y].length - 1; x++){
+        for(var x = 0; x < points[y].length; x++){
             elevationArray.points[y][x].elevation = interpolatePoint(y, x, points[y][x].elevation)
         }
     }
