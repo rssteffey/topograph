@@ -1,19 +1,19 @@
 import * as THREE from 'three';
-import { ConvexGeometry } from 'https://unpkg.com/three/examples/jsm/geometries/ConvexGeometry.js';
 import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls.js';
 
 // Swap these out with variable names from your elevationData/ and routeInfo/ js files
 const pointsData = whitneyElevationData;
 const routeData = whitneyTrailData;
-//const landmarkData = whitneyLandmarkData;
+const landmarkData = whitneyTrailLandmarks;
 
 const spotFeedID = "";
 
 const GRID_X_OFFSET = 0.1;
-const GRID_Y_OFFSET = -0.1;
-const ELEVATION_MODIFIER = 0.0008;
-const ELEVATION_BASE = 0.8;
-const ROUTE_HOVER = 0.008;
+const GRID_Z_OFFSET = 0.1;
+const ELEVATION_MODIFIER = 0.0009;
+const ELEVATION_BOOST = -4;
+const ELEVATION_BASE = -2;
+const ROUTE_HOVER = 0.01;
 
 const SMOOTHING_FACTOR = 0.25;
 
@@ -27,30 +27,21 @@ const summerColors = [0x582a56, 0xb95263, 0xf89b59, 0xfafa6e];
 const miamiHeat = [0x2B3D41, 0x34b18f, 0x872BFF, 0xdc58d4];
 const timesNewRoman = [0x000000, 0x444444, 0xbbbbbb, 0xffffff];
 
+// Actually set colors here
 const wallColor = new THREE.Color(0x615c53);
 const colorScheme = readableColors;
 
-// Render Mountain
-
-// param determines mountain data to render (ie '/peakTracker?location=whitney')
-// This allows for testing of the code locally before we fly to Whitney
-
-// Check location within polygon (to put info about points on the hike)
+// --- End Constants ---
 
 var scene = new THREE.Scene();
-var viewport, renderer, camera, controls, particleDistance, centerPoint = {};
-
-var cube;
+var viewport, renderer, camera, controls;
 
 var minElevation = pointsData.minElevation || 9000;   // Mt. Everest, submit a PR if you discovered something taller
 var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see above
 
-var peak_i, peak_j = -1;
-
 var smoothedElevationGrid;
 
 const material = new THREE.MeshBasicMaterial( { vertexColors: true } );
-const pointsMaterial = new THREE.PointsMaterial({size: 0.04, color: 0xff4444});
 const lineMaterial = new THREE.LineBasicMaterial({
     linewidth: 1.3, 
     color: 0xff0000,
@@ -81,9 +72,8 @@ function init(){
     controls = new OrbitControls( camera, renderer.domElement );
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.25;
+
     // Restrict user from wiggling too much
-    //controls.maxAzimuthAngle = Math.PI/2;
-    //controls.minAzimuthAngle = - Math.PI/2;
     controls.maxPolarAngle = Math.PI / 2;
     controls.minPolarAngle = 0;
     controls.minDistance = 1.0;
@@ -94,11 +84,9 @@ function init(){
 
     createMountain();
     createRoute();
-    animate();
+    createLandmarks();
 
-    //findVertexLocationFromLatLon(36.57128, -118.2364);
-    findVertexLocationFromLatLon(36.59528, -118.2993);
-    
+    animate();
 }
 
 function createMountain(){
@@ -106,15 +94,14 @@ function createMountain(){
     var cleanArray = cleanPointsData(pointsData);
     vertices_array = pointsToTriangles(cleanArray);
 
-    //console.log(vertices_array);
-
     var mountainGeometry = new THREE.BufferGeometry();
 
     mountainGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array.points, 3 ));
     mountainGeometry.setAttribute('color', new THREE.Float32BufferAttribute( vertices_array.colors, 3 ));
 
     var mesh = new THREE.Mesh( mountainGeometry, material );
-    moveCreatedMeshToPosition(mesh);
+    recenterMap(mesh);
+    console.log(mesh.position);
     scene.add( mesh );
 }
 
@@ -130,15 +117,35 @@ function createRoute(){
         var lineGeometry = new THREE.BufferGeometry();
         lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
         var line = new THREE.Line(lineGeometry, lineMaterial);
-        moveCreatedMeshToPosition(line);
+        //moveCreatedMeshToPosition(line);
+        recenterMap(line);
         
         scene.add(line);
     }
 }
 
 function createLandmarks(){
+    var location = findVertexLocationFromLatLon(36.5868781, -118.2401401); //Trailhead
+    console.log(location);
 
+    const geometry = new THREE.CylinderGeometry( .1, .1, 0.05, 32 );
+    const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+    const cylinder = new THREE.Mesh( geometry, material );
+    cylinder.position.x = location.x;
+    cylinder.position.y = location.y;
+    cylinder.position.z = location.z;
+    recenterMap(cylinder);
+    console.log(cylinder.position);
+    scene.add( cylinder );
 }
+
+function recenterMap(mesh){
+    // Translate by half the map length and width to center over 0,0
+    var zSize = smoothedElevationGrid.points.length * GRID_Z_OFFSET;
+    var xSize = smoothedElevationGrid.points[0].length * GRID_X_OFFSET;
+    mesh.translateX(xSize / -2.0);
+    mesh.translateZ(zSize / -2.0);
+} 
 
 function moveCreatedMeshToPosition(mesh){
     mesh.rotation.x = -1 * Math.PI / 2;
@@ -149,18 +156,18 @@ function moveCreatedMeshToPosition(mesh){
 
 function findVertexLocationFromLatLon(latitude, longitude){
     var neighbors = findNeighborsFromLatLon(latitude, longitude);
-    // Take four neighbors and compute grid position & elevation from distances and GRID_X_OFFSET / GRID_Y_OFFSET
+    // Take four neighbors and compute grid position & elevation from distances and GRID_X_OFFSET / GRID_Z_OFFSET
     var x = (neighbors[0].x + neighbors[0].x_dist) * GRID_X_OFFSET ;
-    var y = (neighbors[0].y + neighbors[0].y_dist) * GRID_Y_OFFSET ;
+    var z = (neighbors[0].y + neighbors[0].z_dist) * GRID_Z_OFFSET ;
 
     // Average distances for the neighbors on each half  (where distance is already normalized to total 1)
-    var westSum = (((1 - neighbors[0].y_dist) * neighbors[0].elevation) + ((1-neighbors[2].y_dist) * neighbors[2].elevation))
-    var eastSum = (((1 - neighbors[1].y_dist) * neighbors[1].elevation) + ((1-neighbors[3].y_dist) * neighbors[3].elevation))
+    var westSum = (((1 - neighbors[0].z_dist) * neighbors[0].elevation) + ((1-neighbors[2].z_dist) * neighbors[2].elevation))
+    var eastSum = (((1 - neighbors[1].z_dist) * neighbors[1].elevation) + ((1-neighbors[3].z_dist) * neighbors[3].elevation))
 
     // Take each half and get weighted average for the E/W distance
     var weightedElevation = (westSum * (1-neighbors[0].x_dist)) + (eastSum * (1-neighbors[1].x_dist));
     
-    var z = (weightedElevation * ELEVATION_MODIFIER) + ROUTE_HOVER;
+    var y = (weightedElevation * ELEVATION_MODIFIER) + ROUTE_HOVER + ELEVATION_BOOST;
 
     return { x : x, y : y, z : z};
 }
@@ -168,7 +175,7 @@ function findVertexLocationFromLatLon(latitude, longitude){
 // Returns the coordinates, elevation, and approximate distance from each surrounding grid point (for elevation weighting purposes)
 function findNeighborsFromLatLon(latitude, longitude){
     var xSize = smoothedElevationGrid.points.length; // Latitude decreases within the larger N/S array
-    var ySize = smoothedElevationGrid.points[0].length; // Longitude decreases within each E/W row
+    var zSize = smoothedElevationGrid.points[0].length; // Longitude decreases within each E/W row
 
     var southLat, northLat, eastLon, westLon = null;
     var southVal, northVal, eastVal, westVal = null;
@@ -184,7 +191,7 @@ function findNeighborsFromLatLon(latitude, longitude){
         }
     }
 
-    for(var j = 0; j < ySize; j++){
+    for(var j = 0; j < zSize; j++){
         if(smoothedElevationGrid.points[0][j].longitude > longitude){
             eastLon = j;
             eastVal = smoothedElevationGrid.points[0][j].longitude;
@@ -199,17 +206,17 @@ function findNeighborsFromLatLon(latitude, longitude){
         NWNeighbor = {
             y : northLat,
             x : westLon,
-            y_dist : Math.abs(latitude - northVal) / (northVal - southVal),
+            z_dist : Math.abs(latitude - northVal) / (northVal - southVal),
             x_dist : Math.abs(longitude - westVal) / (eastVal - westVal),
             distance : pythagorean_theorem((latitude - northVal), (longitude - westVal)),
             elevation : smoothedElevationGrid.points[northLat][westLon].elevation
         };
     }
-    if(northLat >= 0 && eastLon < ySize){
+    if(northLat >= 0 && eastLon < zSize){
         NENeighbor = {
             y : northLat,
             x : eastLon,
-            y_dist : Math.abs(latitude - northVal)  / (northVal - southVal),
+            z_dist : Math.abs(latitude - northVal)  / (northVal - southVal),
             x_dist : Math.abs(longitude - eastVal) / (eastVal - westVal),
             distance : pythagorean_theorem((latitude - northVal), (longitude - eastVal)),
             elevation : smoothedElevationGrid.points[northLat][eastLon].elevation
@@ -219,17 +226,17 @@ function findNeighborsFromLatLon(latitude, longitude){
         SWNeighbor = {
             y : southLat,
             x : westLon,
-            y_dist : Math.abs(latitude - southVal) / (northVal - southVal),
+            z_dist : Math.abs(latitude - southVal) / (northVal - southVal),
             x_dist : Math.abs(longitude - westVal)  / (eastVal - westVal),
             distance : pythagorean_theorem((latitude - southVal), (longitude - westVal)),
             elevation : smoothedElevationGrid.points[southLat][westLon].elevation
         };
     }
-    if(southLat < xSize && eastLon < ySize){
+    if(southLat < xSize && eastLon < zSize){
         SENeighbor = {
             y : southLat,
             x : eastLon,
-            y_dist : Math.abs(latitude - southVal)  / (northVal - southVal),
+            z_dist : Math.abs(latitude - southVal)  / (northVal - southVal),
             x_dist : Math.abs(longitude - eastVal) / (eastVal - westVal),
             distance : pythagorean_theorem((latitude - southVal), (longitude - eastVal)),
             elevation : smoothedElevationGrid.points[southLat][eastLon].elevation
@@ -253,107 +260,83 @@ function onWindowResize( event ) {
 
 function animate() {
     requestAnimationFrame(animate);
-
     controls.update();
-
     renderer.render(scene, camera);
-}
-
-// Naive points -> vertex implementation that doesn't account for tris (useful if we end up using a point cloud visual)
-function pointsToVertices(pointDataArray){
-    var xSize = pointDataArray.points.length;
-    var ySize = pointDataArray.points[0].length;
-
-    var return_array = [];
-
-    for(var x = 0; x < pointDataArray.points.length; x++){
-        var row = pointDataArray.points[x];
-        for(var y = 0; y < row.length; y++){
-            return_array.push((y * -0.1), (x * 0.1), row[y].elevation * .0008 );
-        }
-    }
 }
 
 /*
  Convert the grid of points to triangle-based vertex data (with duplicate points for shared vertexes)
-    Y = N/S <---> 
-    X = E/W <--->
+    Z = N ---> S
+    X = W ---> E
 
- It's worth a reminder here to future Shawn that while this may seem complex, it's likely only due to confusing variable names that you should improve on\
- Also the order the vertexes are created determines the direction of the normal.  Note the swapping of A|B|AB and A|AB|B creation statements for the Tris on opposing walls 
+ Remember that the order the vertexes are created determines the direction of the normal.  Note the swapping of A|B|AB and A|AB|B creation statements for the Tris on opposing walls 
 */
 function pointsToTriangles(pointDataArray){
-    var ySize = pointDataArray.points.length;
+    var zSize = pointDataArray.points.length;
     var xSize = pointDataArray.points[0].length;
 
     var return_point_array = [];
     var return_color_array = [];
     var return_scale_array = []
 
-    for(var y = 0; y < pointDataArray.points.length - 1; y++){
+    for(var z = 0; z < pointDataArray.points.length - 1; z++){
         var points = pointDataArray.points;
-        for(var x = 0; x < points[y].length - 1; x++){
+        for(var x = 0; x < points[z].length - 1; x++){
             // Triangle 1 ◣
-            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x].elevation * ELEVATION_MODIFIER );  // a
-            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x+1].elevation * ELEVATION_MODIFIER ); // ab
-            return_point_array.push(((x + 1) * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x+1].elevation * ELEVATION_MODIFIER ); // b
-            
+            return_point_array.push((x * GRID_X_OFFSET), (points[z][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET)  );  // a
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), (points[z+1][x+1].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, ((z + 1) * GRID_Z_OFFSET) ); // ab
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), (points[z][x+1].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET)  ); // b
 
-            var color1 = getColorFromElevation(points[y][x].elevation); // a
-            var color2 = getColorFromElevation(points[y][x+1].elevation); // b
-            var color3 = getColorFromElevation(points[y+1][x+1].elevation); // ab
+            var color1 = getColorFromElevation(points[z][x].elevation); // a
+            var color2 = getColorFromElevation(points[z][x+1].elevation); // b
+            var color3 = getColorFromElevation(points[z+1][x+1].elevation); // ab
 
             return_color_array.push(color1.r, color1.g, color1.b); // a
             return_color_array.push(color3.r, color3.g, color3.b); // ab
             return_color_array.push(color2.r, color2.g, color2.b); // b
             
-
-            return_scale_array.push(1, 1, 1);
-            
             // Triangle 2 ◥
-            return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x].elevation * ELEVATION_MODIFIER ); // a
-            return_point_array.push((x * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x].elevation * ELEVATION_MODIFIER ); // b
-            return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x+1].elevation * ELEVATION_MODIFIER ); //ab
+            return_point_array.push((x * GRID_X_OFFSET), (points[z][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET)  ); // a
+            return_point_array.push((x * GRID_X_OFFSET), (points[z+1][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, ((z + 1) * GRID_Z_OFFSET) ); // b
+            return_point_array.push(((x + 1) * GRID_X_OFFSET), (points[z+1][x+1].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, ((z + 1) * GRID_Z_OFFSET) ); //ab
             
-
-            color1 = getColorFromElevation(points[y][x].elevation); // a
-            color2 = getColorFromElevation(points[y+1][x+1].elevation); // ab
-            color3 = getColorFromElevation(points[y+1][x].elevation); // b
+            color1 = getColorFromElevation(points[z][x].elevation); // a
+            color2 = getColorFromElevation(points[z+1][x+1].elevation); // ab
+            color3 = getColorFromElevation(points[z+1][x].elevation); // b
 
             return_color_array.push(color1.r, color1.g, color1.b); // a
             return_color_array.push(color3.r, color3.g, color3.b); // b
             return_color_array.push(color2.r, color2.g, color2.b); // ab
 
-            return_scale_array.push(1, 1, 1);
         }
     }
 
     // Separate loop to add edge tris (enclose the bottom)
     var x_max = (pointDataArray.points[0].length - 1);
-    var y_max = (pointDataArray.points.length - 1);
+    var z_max = (pointDataArray.points.length - 1);
 
     // East and West edges
-    for(var y = 0; y < y_max; y++){
+    for(var z = 0; z < z_max; z++){
         //West Wall Triangle 1 ◣
-        return_point_array.push(0, (y * GRID_Y_OFFSET), points[y][0].elevation * ELEVATION_MODIFIER );  // a
-        return_point_array.push(0, (y * GRID_Y_OFFSET), ELEVATION_BASE ); // b
-        return_point_array.push(0, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); // ab
+        return_point_array.push(0, (points[z][0].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET) );  // a
+        return_point_array.push(0, ELEVATION_BASE, (z * GRID_Z_OFFSET) ); // b
+        return_point_array.push(0, ELEVATION_BASE, ((z + 1) * GRID_Z_OFFSET) ); // ab
 
         //West Wall Triangle 2 ◥
-        return_point_array.push(0, (y * GRID_Y_OFFSET), points[y][0].elevation * ELEVATION_MODIFIER ); // a
-        return_point_array.push(0, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); //ab
-        return_point_array.push(0, ((y + 1) * GRID_Y_OFFSET), points[y+1][0].elevation * ELEVATION_MODIFIER ); // b
+        return_point_array.push(0, (points[z][0].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET) ); // a
+        return_point_array.push(0, ELEVATION_BASE, ((z + 1) * GRID_Z_OFFSET) ); //ab
+        return_point_array.push(0, (points[z+1][0].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, ((z + 1) * GRID_Z_OFFSET) ); // b
 
         //East Wall Triangle 1 ◣
-        return_point_array.push(x_max * GRID_X_OFFSET, (y * GRID_Y_OFFSET), points[y][x_max].elevation * ELEVATION_MODIFIER );  // a
-        return_point_array.push(x_max * GRID_X_OFFSET, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); // ab
-        return_point_array.push(x_max * GRID_X_OFFSET, (y * GRID_Y_OFFSET), ELEVATION_BASE ); // b
+        return_point_array.push(x_max * GRID_X_OFFSET, (points[z][x_max].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET));  // a
+        return_point_array.push(x_max * GRID_X_OFFSET, ELEVATION_BASE, ((z + 1) * GRID_Z_OFFSET)  ); // ab
+        return_point_array.push(x_max * GRID_X_OFFSET, ELEVATION_BASE, (z * GRID_Z_OFFSET)); // b
 
         //East Wall Triangle 2 ◥
-        return_point_array.push(x_max * GRID_X_OFFSET, (y * GRID_Y_OFFSET), points[y][x_max].elevation * ELEVATION_MODIFIER ); // a
-        return_point_array.push(x_max * GRID_X_OFFSET, ((y + 1) * GRID_Y_OFFSET), points[y+1][x_max].elevation * ELEVATION_MODIFIER ); // b
-        return_point_array.push(x_max * GRID_X_OFFSET, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); //ab
-
+        return_point_array.push(x_max * GRID_X_OFFSET, (points[z][x_max].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET)); // a
+        return_point_array.push(x_max * GRID_X_OFFSET, (points[z+1][x_max].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, ((z + 1) * GRID_Z_OFFSET)); // b
+        return_point_array.push(x_max * GRID_X_OFFSET, ELEVATION_BASE, ((z + 1) * GRID_Z_OFFSET) ); //ab
+        
         // All the wall points have the same color, so speed it up
         for(var c = 0; c < 12; c++){
             return_color_array.push(wallColor.r, wallColor.g, wallColor.b);
@@ -362,32 +345,31 @@ function pointsToTriangles(pointDataArray){
 
     // North and South edges
     for(var x = 0; x < x_max; x++){
-        //North Wall Triangle 1 ◣
-        return_point_array.push(x * GRID_X_OFFSET, 0, points[0][x].elevation * ELEVATION_MODIFIER );  // a
-        return_point_array.push((x + 1) * GRID_X_OFFSET, 0, ELEVATION_BASE ); // ab
-        return_point_array.push(x * GRID_X_OFFSET, 0, ELEVATION_BASE ); // b
-
-        //North Wall Triangle 2 ◥
-        return_point_array.push(x * GRID_X_OFFSET, 0, points[0][x].elevation * ELEVATION_MODIFIER ); // a
-        return_point_array.push((x+1) * GRID_X_OFFSET, 0, points[0][x+1].elevation * ELEVATION_MODIFIER ); // b
-        return_point_array.push((x+1) * GRID_X_OFFSET, 0, ELEVATION_BASE ); //ab
-
         //South Wall Triangle 1 ◣
-        return_point_array.push(x * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, points[y_max][x].elevation * ELEVATION_MODIFIER );  // a
-        return_point_array.push(x * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, ELEVATION_BASE ); // b
-        return_point_array.push((x + 1) * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, ELEVATION_BASE ); // ab
+        return_point_array.push(x * GRID_X_OFFSET, (points[0][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, 0 );  // a
+        return_point_array.push((x + 1) * GRID_X_OFFSET, ELEVATION_BASE, 0 ); // ab
+        return_point_array.push(x * GRID_X_OFFSET, ELEVATION_BASE, 0 ); // b
 
         //South Wall Triangle 2 ◥
-        return_point_array.push(x * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, points[y_max][x].elevation * ELEVATION_MODIFIER ); // a
-        return_point_array.push((x+1) * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, ELEVATION_BASE ); //ab
-        return_point_array.push((x+1) * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, points[y_max][x+1].elevation * ELEVATION_MODIFIER ); // b
+        return_point_array.push(x * GRID_X_OFFSET, (points[0][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, 0 ); // a
+        return_point_array.push((x+1) * GRID_X_OFFSET, (points[0][x+1].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, 0 ); // b
+        return_point_array.push((x+1) * GRID_X_OFFSET, ELEVATION_BASE, 0 ); //ab
+
+        //North Wall Triangle 1 ◣
+        return_point_array.push(x * GRID_X_OFFSET, (points[z_max][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, z_max * GRID_Z_OFFSET);  // a
+        return_point_array.push(x * GRID_X_OFFSET, ELEVATION_BASE, z_max * GRID_Z_OFFSET ); // b
+        return_point_array.push((x + 1) * GRID_X_OFFSET, ELEVATION_BASE, z_max * GRID_Z_OFFSET ); // ab
+
+        //North Wall Triangle 2 ◥
+        return_point_array.push(x * GRID_X_OFFSET, (points[z_max][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, z_max * GRID_Z_OFFSET ); // a
+        return_point_array.push((x+1) * GRID_X_OFFSET, ELEVATION_BASE, z_max * GRID_Z_OFFSET ); //ab
+        return_point_array.push((x+1) * GRID_X_OFFSET, (points[z_max][x+1].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST , z_max * GRID_Z_OFFSET); // b
 
        // All the wall points have the same color, so speed it up
         for(var c = 0; c < 12; c++){
             return_color_array.push(wallColor.r, wallColor.g, wallColor.b);
         }
     }
-
 
     return { points: return_point_array, colors: return_color_array, scale: return_scale_array };
 }
@@ -432,32 +414,32 @@ function lerpColor(pFrom, pTo, pRatio) {
 
 function cleanPointsData(arrayToClean){
     var elevationArray = structuredClone(arrayToClean);
-    for(var y = 0; y < arrayToClean.points.length; y++){
+    for(var z = 0; z < arrayToClean.points.length; z++){
         var points = arrayToClean.points;
-        for(var x = 0; x < points[y].length; x++){
-            elevationArray.points[y][x].elevation = interpolatePoint(y, x, points[y][x].elevation)
+        for(var x = 0; x < points[z].length; x++){
+            elevationArray.points[z][x].elevation = interpolatePoint(z, x, points[z][x].elevation)
         }
     }
     smoothedElevationGrid = elevationArray;
     return elevationArray;
 }
 
-function interpolatePoint(index_y, index_x, elevation){
+function interpolatePoint(index_z, index_x, elevation){
     const smoothingWeight = 1.0 / (SMOOTHING_FACTOR + 0.000001);
 
     const y_size = pointsData.points.length;
     const x_size = pointsData.points[0].length
 
     // Set value to average of neighbors E, W, N, and S
-    var eastNeighbor  = index_y > 0            ? pointsData.points[index_y - 1][index_x].elevation : elevation;
-    var westNeighbor  = index_y < (y_size - 1) ? pointsData.points[index_y + 1][index_x].elevation : elevation;
-    var northNeighbor = index_x > 0            ? pointsData.points[index_y][index_x - 1].elevation : elevation;
-    var southNeighbor = index_x < (x_size - 1) ? pointsData.points[index_y][index_x + 1].elevation : elevation;
+    var eastNeighbor  = index_z > 0            ? pointsData.points[index_z - 1][index_x].elevation : elevation;
+    var westNeighbor  = index_z < (y_size - 1) ? pointsData.points[index_z + 1][index_x].elevation : elevation;
+    var northNeighbor = index_x > 0            ? pointsData.points[index_z][index_x - 1].elevation : elevation;
+    var southNeighbor = index_x < (x_size - 1) ? pointsData.points[index_z][index_x + 1].elevation : elevation;
 
-    var NENeighbor    = index_y > 0  && index_x > 0                        ? pointsData.points[index_y - 1][index_x - 1].elevation : elevation;
-    var NWNeighbor    = index_y < (y_size - 1)  && index_x > 0             ? pointsData.points[index_y + 1][index_x - 1].elevation : elevation;
-    var SENeighbor    = index_y > 0  && index_x < (x_size - 1)             ? pointsData.points[index_y - 1][index_x + 1].elevation : elevation;
-    var SWNeighbor    = index_y < (y_size - 1)  && index_x < (x_size - 1)  ? pointsData.points[index_y + 1][index_x + 1].elevation : elevation;
+    var NENeighbor    = index_z > 0             && index_x > 0             ? pointsData.points[index_z - 1][index_x - 1].elevation : elevation;
+    var NWNeighbor    = index_z < (y_size - 1)  && index_x > 0             ? pointsData.points[index_z + 1][index_x - 1].elevation : elevation;
+    var SENeighbor    = index_z > 0             && index_x < (x_size - 1)  ? pointsData.points[index_z - 1][index_x + 1].elevation : elevation;
+    var SWNeighbor    = index_z < (y_size - 1)  && index_x < (x_size - 1)  ? pointsData.points[index_z + 1][index_x + 1].elevation : elevation;
 
     return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + NENeighbor + NWNeighbor + SENeighbor + SWNeighbor + ( elevation * smoothingWeight))  / (8.0 + smoothingWeight);
 }
