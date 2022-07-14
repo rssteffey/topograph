@@ -46,10 +46,12 @@ var smoothedElevationGrid;
 
 const material = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const pointsMaterial = new THREE.PointsMaterial({size: 0.04, color: 0xff4444});
-const peakMaterial = new THREE.PointsMaterial({size: 0.2, color: 0x4444ff});
-const wireMaterial = new THREE.LineBasicMaterial({
-    color: 0xffffff,
-    linewidth: 0.001
+const lineMaterial = new THREE.LineBasicMaterial({
+    linewidth: 1.3, 
+    color: 0xff0000,
+    linejoin:  'round',
+    linecap: 'round',
+    
 });
 
 init();
@@ -120,7 +122,7 @@ function createRoute(){
 
     var lineGeometry = new THREE.BufferGeometry();
     lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
-    var line = new THREE.Line(lineGeometry, pointsMaterial);
+    var line = new THREE.Line(lineGeometry, lineMaterial);
     moveCreatedMeshToPosition(line);
     
     scene.add(line);
