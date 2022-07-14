@@ -39,40 +39,12 @@ When the generation finishes, it will dump the resulting JSON object to console.
 Generating the trail will be a bit more finicky/involved, but hopefully not _too_ difficult.
 My process was
 - Find an open source trail on OSM (The Whitney Trail I used is from [here](https://www.openstreetmap.org/relation/3289187) )
-- With that trail selected and fully in view, export the current map data (I know very little about using OSM, there's probably a WAY better way of handling these next few steps)
+- With that trail selected and fully in view, export the current map data
 - To keep everything JS, I used an online convertor to turn the XML export into JSON
 - Store the (probably HUGE) json in a file under routeInfo, and import it to your page with a script tag like we do for the elevationData
-- The `generateRouteData()` function is where I parsed this data.  For simplicity of the script, I ended up manually searching for the Trail ref ("34E04" for the Whitney Trail) and pulling out the route data into its own variable called `whitneyRoute`.  This data will be structured like
-
-    ```
-    whitneyRoute = {
-        "nd": [
-            {
-                "_ref": "5739597821"
-            },
-            {
-                "_ref": "842909161"
-            },
-            {
-                "_ref": "7774476608"
-            }
-        ]
-        "tag": [
-            {
-                "_k": "name",
-                "_v": "Mount Whitney Trail"
-            },
-            {
-                "_k": "ref",
-                "_v": "34E04"
-            }
-        ],
-        "_id": "70653369",
-        <other metadata>
-    }
-    ```
-- Then generateRouteData() should go through that nd list, parsing the other top-level `node` array for matches
-- Take the dumped output (routeData and landmarks) and copy them into a new json file under routeInfo
+- The `generateRouteData(routeID)` function is where I parsed this data. Call it from the developer console with that OSM relation ID (3289187 in this case)
+- This should parse out the Ways associated with the trail, and the nodes associated with those Ways, storing them as multiple ways with lat/lon values
+- Take the dumped output (routeData and landmarks) and copy them into a new `js` file under routeInfo
 
 ---
 

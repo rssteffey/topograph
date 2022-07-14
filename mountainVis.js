@@ -2,15 +2,17 @@ import * as THREE from 'three';
 import { ConvexGeometry } from 'https://unpkg.com/three/examples/jsm/geometries/ConvexGeometry.js';
 import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls.js';
 
-// Swap these out for different uses
+// Swap these out with variable names from your elevationData/ and routeInfo/ js files
 const pointsData = whitneyElevationData;
 const routeData = whitneyTrailData;
+//const landmarkData = whitneyLandmarkData;
+
 const spotFeedID = "";
 
 const GRID_X_OFFSET = 0.1;
 const GRID_Y_OFFSET = -0.1;
 const ELEVATION_MODIFIER = 0.0008;
-const ROUTE_HOVER = 0.01;
+const ROUTE_HOVER = 0.008;
 
 const SMOOTHING_FACTOR = 0.25;
 
@@ -18,10 +20,11 @@ const SMOOTHING_FACTOR = 0.25;
 const colorCutoff1 = 3200;
 const colorCutoff2 = 3800;
 
+// Color schemes, choose or create your own
 const readableColors = [0x004400, 0x334400, 0xDDDDBB, 0xFFFFFF];
 const summerColors = [0x582a56, 0xb95263, 0xf89b59, 0xfafa6e];
 const miamiHeat = [0x2B3D41, 0x34b18f, 0x872BFF, 0xdc58d4];
-const timeNewRoman = [0x000000, 0x444444, 0xbbbbbb, 0xffffff];
+const timesNewRoman = [0x000000, 0x444444, 0xbbbbbb, 0xffffff];
 
 const colorScheme = readableColors;
 
