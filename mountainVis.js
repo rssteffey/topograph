@@ -4,13 +4,15 @@ import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/Orb
 
 // Swap these out for different uses
 const pointsData = whitneyElevationData;
+const routeData = whitneyTrailData;
 const spotFeedID = "";
 
 const GRID_X_OFFSET = 0.1;
 const GRID_Y_OFFSET = -0.1;
 const ELEVATION_MODIFIER = 0.0008;
+const ROUTE_HOVER = 0.01;
 
-const SMOOTHING_FACTOR = 0.2;
+const SMOOTHING_FACTOR = 0.25;
 
 // Color gradient transition points (useful for creating treelines, etc)
 const colorCutoff1 = 3200;
@@ -35,9 +37,20 @@ var viewport, renderer, camera, controls, particleDistance, centerPoint = {};
 
 var cube;
 
-var minElevation = pointsData.minElevation || 9000;   // taller than Everest, submit a PR if you discovered something taller
+var minElevation = pointsData.minElevation || 9000;   // Mt. Everest, submit a PR if you discovered something taller
 var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see above
 
+var peak_i, peak_j = -1;
+
+var smoothedElevationGrid;
+
+const material = new THREE.MeshBasicMaterial( { vertexColors: true } );
+const pointsMaterial = new THREE.PointsMaterial({size: 0.04, color: 0xff4444});
+const peakMaterial = new THREE.PointsMaterial({size: 0.2, color: 0x4444ff});
+const wireMaterial = new THREE.LineBasicMaterial({
+    color: 0xffffff,
+    linewidth: 0.001
+});
 
 init();
 
@@ -52,14 +65,10 @@ function init(){
     renderer = new THREE.WebGLRenderer({ antialias: 0, clearAlpha: 0, alpha:true });
     renderer.setSize(WIDTH, HEIGHT);
     renderer.setClearColor( 0x000000, 0 ); // the default
-    //renderer.shadowMap.enabled = true;
     viewport.appendChild(renderer.domElement);
     window.addEventListener( 'resize', onWindowResize, false );
-    
-    //scene.fog = new THREE.Fog( 0x111111, 22000, 25000 );
 
     camera = new THREE.PerspectiveCamera(50, WIDTH / HEIGHT, 0.1, 1000);
-    //camera.position  = new THREE.Vector3(3, 5, 5);
     camera.position.y = 4;
     camera.position.z = 5;
     controls = new OrbitControls( camera, renderer.domElement );
@@ -77,42 +86,156 @@ function init(){
     scene.add(camera);
 
     createMountain();
+    createRoute();
     animate();
+
+    //findVertexLocationFromLatLon(36.57128, -118.2364);
+    findVertexLocationFromLatLon(36.59528, -118.2993);
+    
 }
 
 function createMountain(){
-
-    //const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-    const material = new THREE.MeshBasicMaterial( { vertexColors: true } );
-    const pointsMaterial = new THREE.PointsMaterial({size: 0.1, vertexColors: true});
-    const wireMaterial = new THREE.LineBasicMaterial({
-        color: 0xffffff,
-	    linewidth: 0.001
-    });
-
     var vertices_array = [];
     var cleanArray = cleanPointsData(pointsData);
     vertices_array = pointsToTriangles(cleanArray);
 
-    var pointGeometry = new THREE.BufferGeometry();
+    //console.log(vertices_array);
 
-    pointGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array.points, 3 ));
-    pointGeometry.setAttribute('color', new THREE.Float32BufferAttribute( vertices_array.colors, 3 ));
+    var mountainGeometry = new THREE.BufferGeometry();
 
-    var pointsMesh = new THREE.Points(pointGeometry, pointsMaterial);
+    mountainGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array.points, 3 ));
+    mountainGeometry.setAttribute('color', new THREE.Float32BufferAttribute( vertices_array.colors, 3 ));
 
-    var mesh = new THREE.Mesh( pointGeometry, material );
+    var mesh = new THREE.Mesh( mountainGeometry, material );
+    moveCreatedMeshToPosition(mesh);
+    scene.add( mesh );
+}
+
+function createRoute(){
+    var vertices_array = [];
+    for(var i = 0; i < routeData.length; i++){
+        var location = findVertexLocationFromLatLon(routeData[i].lat, routeData[i].lon);
+        vertices_array.push(location.x, location.y, location.z);
+    }
+
+    var lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
+    var line = new THREE.Line(lineGeometry, pointsMaterial);
+    moveCreatedMeshToPosition(line);
+    
+    scene.add(line);
+}
+
+function moveCreatedMeshToPosition(mesh){
     mesh.rotation.x = -1 * Math.PI / 2;
     mesh.translateZ(-3);
     mesh.translateX(-3);
     mesh.translateY(2);
-    //mesh.rotation.set(new THREE.Vector3( 0, 0, - Math.PI / 2));
-    scene.add( mesh );
+}
 
+function findVertexLocationFromLatLon(latitude, longitude){
+    var neighbors = findNeighborsFromLatLon(latitude, longitude);
+    // Take four neighbors and compute grid position & elevation from distances and GRID_X_OFFSET / GRID_Y_OFFSET
+    var x = (neighbors[0].x + neighbors[0].x_dist) * GRID_X_OFFSET ;
+    var y = (neighbors[0].y + neighbors[0].y_dist) * GRID_Y_OFFSET ;
+
+    // Average distances for the neighbors on each half  (where distance is already normalized to total 1)
+    var westSum = (((1 - neighbors[0].y_dist) * neighbors[0].elevation) + ((1-neighbors[2].y_dist) * neighbors[2].elevation))
+    var eastSum = (((1 - neighbors[1].y_dist) * neighbors[1].elevation) + ((1-neighbors[3].y_dist) * neighbors[3].elevation))
+
+    // Take each half and get weighted average for the E/W distance
+    var weightedElevation = (westSum * (1-neighbors[0].x_dist)) + (eastSum * (1-neighbors[1].x_dist));
     
+    var z = (weightedElevation * ELEVATION_MODIFIER) + ROUTE_HOVER;
 
-    // var vertices_array = []
-    // var mesh = new THREE.ConvexGeometry( vertices_array );
+    return { x : x, y : y, z : z};
+}
+
+// Returns the coordinates, elevation, and approximate distance from each surrounding grid point (for elevation weighting purposes)
+function findNeighborsFromLatLon(latitude, longitude){
+    var xSize = smoothedElevationGrid.points.length; // Latitude decreases within the larger N/S array
+    var ySize = smoothedElevationGrid.points[0].length; // Longitude decreases within each E/W row
+
+    var southLat, northLat, eastLon, westLon = null;
+    var southVal, northVal, eastVal, westVal = null;
+    var NWNeighbor, SWNeighbor, NENeighbor, SENeighbor = null;
+
+    for(var i = 0; i < xSize; i++){
+        if(smoothedElevationGrid.points[i][0].latitude < latitude){
+            southLat = i;
+            southVal = smoothedElevationGrid.points[i][0].latitude;
+            northLat = i - 1;
+            northVal = i - 1 >= 0 ? smoothedElevationGrid.points[i-1][0].latitude : latitude;
+            break;
+        }
+    }
+
+    for(var j = 0; j < ySize; j++){
+        if(smoothedElevationGrid.points[0][j].longitude > longitude){
+            eastLon = j;
+            eastVal = smoothedElevationGrid.points[0][j].longitude;
+            westLon = j - 1;
+            westVal = j - 1 >= 0 ? smoothedElevationGrid.points[0][j - 1].longitude : longitude;
+            break;
+        }
+    }
+
+    // var testDump = {
+    //     northVal : northVal,
+    //     southVal : southVal,
+    //     eastVal : eastVal,
+    //     westVal : westVal
+    // }
+
+    // Create neighbor objects only if within larger grid
+    if(northLat >= 0 && westLon >= 0){
+        NWNeighbor = {
+            y : northLat,
+            x : westLon,
+            y_dist : Math.abs(latitude - northVal) / (northVal - southVal),
+            x_dist : Math.abs(longitude - westVal) / (eastVal - westVal),
+            distance : pythagorean_theorem((latitude - northVal), (longitude - westVal)),
+            elevation : smoothedElevationGrid.points[northLat][westLon].elevation
+        };
+    }
+    if(northLat >= 0 && eastLon < ySize){
+        NENeighbor = {
+            y : northLat,
+            x : eastLon,
+            y_dist : Math.abs(latitude - northVal)  / (northVal - southVal),
+            x_dist : Math.abs(longitude - eastVal) / (eastVal - westVal),
+            distance : pythagorean_theorem((latitude - northVal), (longitude - eastVal)),
+            elevation : smoothedElevationGrid.points[northLat][eastLon].elevation
+        };
+    }
+    if(southLat < xSize && westLon >= 0){
+        SWNeighbor = {
+            y : southLat,
+            x : westLon,
+            y_dist : Math.abs(latitude - southVal) / (northVal - southVal),
+            x_dist : Math.abs(longitude - westVal)  / (eastVal - westVal),
+            distance : pythagorean_theorem((latitude - southVal), (longitude - westVal)),
+            elevation : smoothedElevationGrid.points[southLat][westLon].elevation
+        };
+    }
+    if(southLat < xSize && eastLon < ySize){
+        SENeighbor = {
+            y : southLat,
+            x : eastLon,
+            y_dist : Math.abs(latitude - southVal)  / (northVal - southVal),
+            x_dist : Math.abs(longitude - eastVal) / (eastVal - westVal),
+            distance : pythagorean_theorem((latitude - southVal), (longitude - eastVal)),
+            elevation : smoothedElevationGrid.points[southLat][eastLon].elevation
+        };
+    }
+
+    //console.log(testDump);
+
+    return [NWNeighbor, NENeighbor, SWNeighbor, SENeighbor];
+}
+
+function pythagorean_theorem(x, y) {
+    return Math.sqrt(x * x + y * y);
 }
 
 function onWindowResize( event ) {
@@ -161,6 +284,13 @@ function pointsToTriangles(pointDataArray){
     for(var y = 0; y < pointDataArray.points.length - 1; y++){
         var points = pointDataArray.points;
         for(var x = 0; x < points[y].length - 1; x++){
+
+            // calc peak coordinates for simple test
+            if(pointDataArray.points[y][x].elevation > 4300){
+                peak_i = y;
+                peak_j = x;
+            }
+
             // Triangle 1 ◣
             return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x].elevation * ELEVATION_MODIFIER );  // a
             return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x+1].elevation * ELEVATION_MODIFIER ); // ab
@@ -249,6 +379,7 @@ function cleanPointsData(arrayToClean){
             elevationArray.points[y][x].elevation = interpolatePoint(y, x, points[y][x].elevation)
         }
     }
+    smoothedElevationGrid = elevationArray;
     return elevationArray;
 }
 

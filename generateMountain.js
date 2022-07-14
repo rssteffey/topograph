@@ -72,6 +72,48 @@ function requestElevationForRow(rowData){
     return xhttp.responseText
 }
 
+function generateRouteData(){
+    var routeData = [];
+    var landmarks = [];
+
+    nodes = whitneyRoute.nd;
+
+    // Iterate over the trail nodes, storing the appropriate lat/lon in our custom (smaller) file
+    for(var i = 0; i < nodes.length; i++){
+        var match = whitneyMapNodes.node.find(function (e) {
+            return e._id == nodes[i]._ref;
+        });
+        
+        if(match.tag){
+            var nameTag = match.tag.find(function (e) {
+                return e._k == "name";
+            });
+
+            var fordTag = match.tag.find(function (e) {
+                return e._k == "ford";
+            });
+
+            var tagLabel = nameTag ? nameTag._v : null;
+            var fordLabel = fordTag ? fordTag._v : null;
+
+            landmarks.push({
+                lat: match._lat,
+                lon: match._lon,
+                tag: tagLabel,
+                riverFord: fordLabel
+            });
+        } else {
+            routeData.push({
+                lat: match._lat,
+                lon: match._lon
+            });
+        }
+    }
+
+    console.log(routeData);
+    console.log(landmarks);
+}
+
 // Don't judge me, just let me have my nice sleep function
 function sleep(milliseconds) {
     const date = Date.now();
