@@ -114,18 +114,23 @@ function createMountain(){
 }
 
 function createRoute(){
-    var vertices_array = [];
-    for(var i = 0; i < routeData.length; i++){
-        var location = findVertexLocationFromLatLon(routeData[i].lat, routeData[i].lon);
-        vertices_array.push(location.x, location.y, location.z);
+
+    for(var w = 0; w < routeData.ways.length; w++){
+        var vertices_array = [];
+        for(var i = 0; i < routeData.ways[w].nodes.length; i++){
+            var location = findVertexLocationFromLatLon(routeData.ways[w].nodes[i].lat, routeData.ways[w].nodes[i].lon);
+            vertices_array.push(location.x, location.y, location.z);
+        }
+    
+        var lineGeometry = new THREE.BufferGeometry();
+        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
+        var line = new THREE.Line(lineGeometry, lineMaterial);
+        moveCreatedMeshToPosition(line);
+        
+        scene.add(line);
     }
 
-    var lineGeometry = new THREE.BufferGeometry();
-    lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
-    var line = new THREE.Line(lineGeometry, lineMaterial);
-    moveCreatedMeshToPosition(line);
     
-    scene.add(line);
 }
 
 function moveCreatedMeshToPosition(mesh){

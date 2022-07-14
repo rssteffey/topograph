@@ -72,44 +72,67 @@ function requestElevationForRow(rowData){
     return xhttp.responseText
 }
 
-function generateRouteData(){
-    var routeData = [];
+function generateRouteData(routeId){
+    var routeData = { ways : []};
     var landmarks = [];
 
-    nodes = whitneyRoute.nd;
+    // Someone entered the John Muir trail data in reverse order, which draws a route straight across the map
+    // to start the next section.
+    // Instead of trying to manually account for things, it's easier just to treat the Ways as unique meshes,
+    // since that's technically how the data is represented on OSM
+    //routeData.ways = [];
 
-    // Iterate over the trail nodes, storing the appropriate lat/lon in our custom (smaller) file
-    for(var i = 0; i < nodes.length; i++){
-        var match = whitneyMapNodes.node.find(function (e) {
-            return e._id == nodes[i]._ref;
+    var trail = whitneyMapNodes.relation.find(function (e) {
+        return e._id == routeId;
+    });
+
+    console.log(trail);
+    // Loop over ways for current trail
+    for(var w = 0; w < trail.member.length; w++){
+        var way = whitneyMapNodes.way.find(function (e) {
+            return e._id == trail.member[w]._ref;
         });
-        
-        if(match.tag){
-            var nameTag = match.tag.find(function (e) {
-                return e._k == "name";
-            });
+        routeData.ways.push({
+            name: way._id,
+            nodes : []
+        })
 
-            var fordTag = match.tag.find(function (e) {
-                return e._k == "ford";
-            });
+        var nodes = way.nd;
 
-            var tagLabel = nameTag ? nameTag._v : null;
-            var fordLabel = fordTag ? fordTag._v : null;
-
-            landmarks.push({
-                lat: match._lat,
-                lon: match._lon,
-                tag: tagLabel,
-                riverFord: fordLabel
+        for(var i = 0; i < nodes.length; i++){
+            var match = whitneyMapNodes.node.find(function (e) {
+                return e._id == nodes[i]._ref;
             });
-        } else {
-            routeData.push({
-                lat: match._lat,
-                lon: match._lon
-            });
+            
+            if(match.tag){
+                var nameTag = match.tag.find(function (e) {
+                    return e._k == "name";
+                });
+    
+                var fordTag = match.tag.find(function (e) {
+                    return e._k == "ford";
+                });
+    
+                var tagLabel = nameTag ? nameTag._v : null;
+                var fordLabel = fordTag ? fordTag._v : null;
+    
+                landmarks.push({
+                    lat: match._lat,
+                    lon: match._lon,
+                    tag: tagLabel,
+                    riverFord: fordLabel
+                });
+            } else {
+                routeData.ways[w].nodes.push({
+                    lat: match._lat,
+                    lon: match._lon
+                });
+            }
         }
     }
 
+    // Iterate over the trail nodes, storing the appropriate lat/lon in our custom (smaller) file
+    
     console.log(routeData);
     console.log(landmarks);
 }
