@@ -12,6 +12,7 @@ const spotFeedID = "";
 const GRID_X_OFFSET = 0.1;
 const GRID_Y_OFFSET = -0.1;
 const ELEVATION_MODIFIER = 0.0008;
+const ELEVATION_BASE = 0.8;
 const ROUTE_HOVER = 0.008;
 
 const SMOOTHING_FACTOR = 0.25;
@@ -26,6 +27,7 @@ const summerColors = [0x582a56, 0xb95263, 0xf89b59, 0xfafa6e];
 const miamiHeat = [0x2B3D41, 0x34b18f, 0x872BFF, 0xdc58d4];
 const timesNewRoman = [0x000000, 0x444444, 0xbbbbbb, 0xffffff];
 
+const wallColor = new THREE.Color(0x615c53);
 const colorScheme = readableColors;
 
 // Render Mountain
@@ -132,8 +134,10 @@ function createRoute(){
         
         scene.add(line);
     }
+}
 
-    
+function createLandmarks(){
+
 }
 
 function moveCreatedMeshToPosition(mesh){
@@ -190,13 +194,6 @@ function findNeighborsFromLatLon(latitude, longitude){
         }
     }
 
-    // var testDump = {
-    //     northVal : northVal,
-    //     southVal : southVal,
-    //     eastVal : eastVal,
-    //     westVal : westVal
-    // }
-
     // Create neighbor objects only if within larger grid
     if(northLat >= 0 && westLon >= 0){
         NWNeighbor = {
@@ -239,8 +236,6 @@ function findNeighborsFromLatLon(latitude, longitude){
         };
     }
 
-    //console.log(testDump);
-
     return [NWNeighbor, NENeighbor, SWNeighbor, SENeighbor];
 }
 
@@ -260,7 +255,6 @@ function animate() {
     requestAnimationFrame(animate);
 
     controls.update();
-    //console.log(camera.position);
 
     renderer.render(scene, camera);
 }
@@ -280,9 +274,14 @@ function pointsToVertices(pointDataArray){
     }
 }
 
-// Convert the grid of points to triangle-based vertex data (with duplicate points for shared vertexes)
-    // Y = N/S
-    // X = E/W
+/*
+ Convert the grid of points to triangle-based vertex data (with duplicate points for shared vertexes)
+    Y = N/S <---> 
+    X = E/W <--->
+
+ It's worth a reminder here to future Shawn that while this may seem complex, it's likely only due to confusing variable names that you should improve on\
+ Also the order the vertexes are created determines the direction of the normal.  Note the swapping of A|B|AB and A|AB|B creation statements for the Tris on opposing walls 
+*/
 function pointsToTriangles(pointDataArray){
     var ySize = pointDataArray.points.length;
     var xSize = pointDataArray.points[0].length;
@@ -294,13 +293,6 @@ function pointsToTriangles(pointDataArray){
     for(var y = 0; y < pointDataArray.points.length - 1; y++){
         var points = pointDataArray.points;
         for(var x = 0; x < points[y].length - 1; x++){
-
-            // calc peak coordinates for simple test
-            if(pointDataArray.points[y][x].elevation > 4300){
-                peak_i = y;
-                peak_j = x;
-            }
-
             // Triangle 1 ◣
             return_point_array.push((x * GRID_X_OFFSET), (y * GRID_Y_OFFSET), points[y][x].elevation * ELEVATION_MODIFIER );  // a
             return_point_array.push(((x + 1) * GRID_X_OFFSET), ((y + 1) * GRID_Y_OFFSET), points[y+1][x+1].elevation * ELEVATION_MODIFIER ); // ab
@@ -336,8 +328,65 @@ function pointsToTriangles(pointDataArray){
         }
     }
 
-    //Separate loop to add edge tris (enclose the bottom)
-    // Front and back edges
+    // Separate loop to add edge tris (enclose the bottom)
+    var x_max = (pointDataArray.points[0].length - 1);
+    var y_max = (pointDataArray.points.length - 1);
+
+    // East and West edges
+    for(var y = 0; y < y_max; y++){
+        //West Wall Triangle 1 ◣
+        return_point_array.push(0, (y * GRID_Y_OFFSET), points[y][0].elevation * ELEVATION_MODIFIER );  // a
+        return_point_array.push(0, (y * GRID_Y_OFFSET), ELEVATION_BASE ); // b
+        return_point_array.push(0, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); // ab
+
+        //West Wall Triangle 2 ◥
+        return_point_array.push(0, (y * GRID_Y_OFFSET), points[y][0].elevation * ELEVATION_MODIFIER ); // a
+        return_point_array.push(0, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); //ab
+        return_point_array.push(0, ((y + 1) * GRID_Y_OFFSET), points[y+1][0].elevation * ELEVATION_MODIFIER ); // b
+
+        //East Wall Triangle 1 ◣
+        return_point_array.push(x_max * GRID_X_OFFSET, (y * GRID_Y_OFFSET), points[y][x_max].elevation * ELEVATION_MODIFIER );  // a
+        return_point_array.push(x_max * GRID_X_OFFSET, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); // ab
+        return_point_array.push(x_max * GRID_X_OFFSET, (y * GRID_Y_OFFSET), ELEVATION_BASE ); // b
+
+        //East Wall Triangle 2 ◥
+        return_point_array.push(x_max * GRID_X_OFFSET, (y * GRID_Y_OFFSET), points[y][x_max].elevation * ELEVATION_MODIFIER ); // a
+        return_point_array.push(x_max * GRID_X_OFFSET, ((y + 1) * GRID_Y_OFFSET), points[y+1][x_max].elevation * ELEVATION_MODIFIER ); // b
+        return_point_array.push(x_max * GRID_X_OFFSET, ((y + 1) * GRID_Y_OFFSET), ELEVATION_BASE ); //ab
+
+        // All the wall points have the same color, so speed it up
+        for(var c = 0; c < 12; c++){
+            return_color_array.push(wallColor.r, wallColor.g, wallColor.b);
+        }
+    }
+
+    // North and South edges
+    for(var x = 0; x < x_max; x++){
+        //North Wall Triangle 1 ◣
+        return_point_array.push(x * GRID_X_OFFSET, 0, points[0][x].elevation * ELEVATION_MODIFIER );  // a
+        return_point_array.push((x + 1) * GRID_X_OFFSET, 0, ELEVATION_BASE ); // ab
+        return_point_array.push(x * GRID_X_OFFSET, 0, ELEVATION_BASE ); // b
+
+        //North Wall Triangle 2 ◥
+        return_point_array.push(x * GRID_X_OFFSET, 0, points[0][x].elevation * ELEVATION_MODIFIER ); // a
+        return_point_array.push((x+1) * GRID_X_OFFSET, 0, points[0][x+1].elevation * ELEVATION_MODIFIER ); // b
+        return_point_array.push((x+1) * GRID_X_OFFSET, 0, ELEVATION_BASE ); //ab
+
+        //South Wall Triangle 1 ◣
+        return_point_array.push(x * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, points[y_max][x].elevation * ELEVATION_MODIFIER );  // a
+        return_point_array.push(x * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, ELEVATION_BASE ); // b
+        return_point_array.push((x + 1) * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, ELEVATION_BASE ); // ab
+
+        //South Wall Triangle 2 ◥
+        return_point_array.push(x * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, points[y_max][x].elevation * ELEVATION_MODIFIER ); // a
+        return_point_array.push((x+1) * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, ELEVATION_BASE ); //ab
+        return_point_array.push((x+1) * GRID_X_OFFSET, y_max * GRID_Y_OFFSET, points[y_max][x+1].elevation * ELEVATION_MODIFIER ); // b
+
+       // All the wall points have the same color, so speed it up
+        for(var c = 0; c < 12; c++){
+            return_color_array.push(wallColor.r, wallColor.g, wallColor.b);
+        }
+    }
 
 
     return { points: return_point_array, colors: return_color_array, scale: return_scale_array };
