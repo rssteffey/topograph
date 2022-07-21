@@ -59,7 +59,6 @@ const lineMaterial = new THREE.LineBasicMaterial({
     linecap: 'round',
 });
 
-const trackingMaterial = new THREE.MeshBasicMaterial({color: 0x44dd44});
 const trackingHighlightMaterial = new THREE.MeshBasicMaterial({color: 0xdddd44});
 
 // Hover checks
@@ -253,9 +252,10 @@ function createTrackingPath(feed){
     if(feed.length > 0){
         createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, MOST_RECENT_BOOST);
     }
+    // Older points fade to non-existence
     if(feed.length >= 2){
         for(var i = 1; i < feed.length; i++){
-            createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, trackingMaterial);
+            createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length));
         }
     }
 }
@@ -625,6 +625,17 @@ function getMapSatelliteMaterial(){
     });
 
     return satMaterial;
+}
+
+function getTrackingPointMaterial(index, length){
+    var opacity = 1.0 - ((index * 1.0) / length);
+    console.log(opacity);
+    var mat = new THREE.MeshBasicMaterial({
+        transparent: true,
+        color: 0x44dd44,
+        opacity: opacity
+    });
+    return mat;
 }
 
 function onDocumentMouseMove( event ) 
