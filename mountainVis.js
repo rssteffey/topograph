@@ -14,20 +14,25 @@ const ELEVATION_MODIFIER = 0.0009;
 const ELEVATION_BOOST = -4;
 const ELEVATION_BASE = -2;
 const ROUTE_HOVER = 0.01;
+const LANDMARK_HOVER = 0.01;
+const TRACK_HOVER = 0.03;
 
-const SMOOTHING_FACTOR = 0.25;
+const SMOOTHING_FACTOR = 0.15;
 
-// Color gradient transition points (useful for creating treelines, etc)
+// Color gradient transition points (elevation in meters) (useful for creating treelines, etc)
 const colorCutoff1 = 3200;
 const colorCutoff2 = 3800;
 
-// Color schemes, choose or create your own
+// Make null to use the colorScheme instead
+const textureAssetPath = "assets/whitneyTextureLowRes.png"
+
+// Available color schemes
 const readableColors = [0x004400, 0x334400, 0xDDDDBB, 0xFFFFFF];
 const summerColors = [0x582a56, 0xb95263, 0xf89b59, 0xfafa6e];
 const miamiHeat = [0x2B3D41, 0x34b18f, 0x872BFF, 0xdc58d4];
 const timesNewRoman = [0x000000, 0x444444, 0xbbbbbb, 0xffffff];
 
-// Actually set colors here
+// Choose colorscheme here
 const wallColor = new THREE.Color(0x615c53);
 const colorScheme = readableColors;
 
@@ -42,7 +47,7 @@ var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see ab
 var smoothedElevationGrid;
 var trackingPoints = []; //store tracking points to delete when pulling new data
 
-const material = new THREE.MeshBasicMaterial( { vertexColors: true } );
+const vertexMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const sideMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const lineMaterial = new THREE.LineBasicMaterial({
     linewidth: 1.3, 
@@ -52,6 +57,7 @@ const lineMaterial = new THREE.LineBasicMaterial({
 });
 
 const trackingMaterial = new THREE.MeshBasicMaterial({color: 0x44dd44});
+const trackingHighlightMaterial = new THREE.MeshBasicMaterial({color: 0xdddd44});
 
 // Hover checks
 var raycaster, INTERSECTED;
@@ -119,9 +125,12 @@ function createMountain(){
     mountainGeometry.setAttribute('color', new THREE.Float32BufferAttribute( mtn_vertices_array.colors, 3 ));
     mountainGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(mtn_vertices_array.uvs, 2))
 
-    var satMaterial = getMapSatelliteMaterial();
+    var mountMaterial = vertexMaterial;
+    if(textureAssetPath != null){
+        var mountMaterial = getMapSatelliteMaterial(textureAssetPath);
+    }
 
-    var topoMesh = new THREE.Mesh( mountainGeometry, satMaterial );
+    var topoMesh = new THREE.Mesh( mountainGeometry, mountMaterial );
     recenterMap(topoMesh);
     scene.add( topoMesh );
 
@@ -164,12 +173,12 @@ function createLandmarks(){
     var location = findVertexLocationFromLatLon(36.5868781, -118.2401401); //Trailhead
     console.log(location);
 
-    const geometry = new THREE.CylinderGeometry( .09, .09, 0.01, 32 );
+    const geometry = new THREE.CylinderGeometry( .09, .09, 0.03, 32 );
     geometry.name = "Trailhead";
     const material = getLandmarkMaterial("trailhead");
     const cylinder = new THREE.Mesh( geometry, material );
     cylinder.position.x = location.x;
-    cylinder.position.y = location.y;
+    cylinder.position.y = location.y + LANDMARK_HOVER;
     cylinder.position.z = location.z;
     recenterMap(cylinder);
     console.log(cylinder.position);
@@ -179,26 +188,35 @@ function createLandmarks(){
 function createTrackingPath(feed){
 
     //delete old tracking objects
-    // loop trackingPoints and remove
+    for(var j = 0; j < trackingPoints.length; j++){
+        scene.remove(trackingPoints[j]);
+    }
 
-    for(var i = 0; i < feed.length; i++){
-        createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp);
+    // Latest point gets special dot
+    if(feed.length > 0){
+        createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial);
+    }
+    if(feed.length >= 2){
+        for(var i = 1; i < feed.length; i++){
+            createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, trackingMaterial);
+        }
     }
 }
 
-function createTrackingPoint(lat, lon, type, timestamp){
+function createTrackingPoint(lat, lon, type, timestamp, material){
     const geometry = new THREE.CylinderGeometry( .04, .04, 0.01, 4 );
     geometry.name = "Tracker-" + timestamp;
-    const cylinder = new THREE.Mesh( geometry, trackingMaterial );
-    // TEST FROM LOCERBIE (REMOVE BEFORE PROD)
+    const point = new THREE.Mesh( geometry, material );
+    // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
     var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
     var loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon);
-    cylinder.position.x = loc.x;
-    cylinder.position.y = loc.y;
-    cylinder.position.z = loc.z;
-    recenterMap(cylinder);
-    console.log(cylinder.position);
-    scene.add( cylinder );
+    point.position.x = loc.x;
+    point.position.y = loc.y + TRACK_HOVER;
+    point.position.z = loc.z;
+    recenterMap(point);
+    scene.add( point );
+
+    trackingPoints.push(point)
 }
 
 // Convert coordinates of local starting point (35.755874, -86.869595)
@@ -208,6 +226,13 @@ function offsetCoordinatesFromSpringHill(lat, lon){
     var trailheadStart = {lat: 36.586942, lon: -118.240147};
     var offsetLat = localTestStart.lat - trailheadStart.lat;
     var offsetLon = localTestStart.lon - trailheadStart.lon;
+
+    // I'm likely to forget to remove this before our trip, so as a failsafe, no coordinate offset after Aug 10
+    var cutoffDate = new Date("08/10/2022");
+    if(Date.now() >= cutoffDate){
+        return {lat: lat, lon: lon};
+    }
+
     return { lat: lat - offsetLat, lon: lon - offsetLon};
 }
 
@@ -548,9 +573,7 @@ function getLandmarkMaterial(landmarkType){
 
 function getMapSatelliteMaterial(){
     const textureLoader = new THREE.TextureLoader();
-    const texture = textureLoader.load(
-        '/assets/whitneyTextureLowRes.png',
-    );
+    const texture = textureLoader.load(textureAssetPath);
 
     const satMaterial = new THREE.MeshBasicMaterial({
         map: texture,
@@ -591,7 +614,9 @@ function checkIntersect()
 }
 
 
-//  Function to actually grab data from feed (swap these next few methods to add other GPS unit support)
+//  Function to actually grab data from feed
+//  I'm hitting a custom Lambda function that handles feed caching so we aren't slamming Spot with too many requests
+//  That being said - don't slam me with too many requests :)
 function getRemoteFeedData(){
     const url = "https://wdwkhs4lxfbzzazoo6z4dgd6be0kwtpf.lambda-url.us-east-1.on.aws/?spotfeed=" + spotFeedID;
     const http = new XMLHttpRequest();
@@ -606,7 +631,6 @@ function getRemoteFeedData(){
     }
 }
 
-// Todo : Function to turn spot feed into generic points list (swap this to add other GPS unit support)
 function normalizeSpotFeed(data){
     console.log("Source: " + data.source);
     var feed = [];

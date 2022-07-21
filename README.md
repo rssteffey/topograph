@@ -58,6 +58,14 @@ Replace the imports near the top of `mountainVis.js` with your new data sources
 The tracking points are sourced from a [Spot™ Satellite Tracker XML feed](https://www.findmespot.com/en-us/support/spot-x/get-help/general/spot-api-support).  The feed ID can also be replaced while you're already here swapping out things in `mountainVis.js`
 
 
-## Misc Notes
+## FAQ
 
-I have naively left my Google Maps API key in the script import tag, but I will almost certainly deactivate it after this project since I'm just using it to generate these initial point clouds. So replace it with your own.
+### - Shawn, How do I add a satellite view like you did on this?
+
+Unfortunately, this part isn't automated.  I made the decision early on not to use map tileset structures for my data, and that wipes out most satellite views.
+
+To do it manually, I went to https://earthexplorer.usgs.gov/ , and then built a polygon (bottom left of the menu) with the four coordinates of my map corners (first and last entries of the first and last rows in your elevation data).
+
+Then I zoomed that rectangle to fill as much of the screen as possible, and took a screenshot.  Then I cleared the point markers and took another screenshot of the same area.
+
+Take both these images into your photo editor of choice, overlay them exactly, then crop the image to the four corner markers, and export only the clean layer.  There's your map texture.
