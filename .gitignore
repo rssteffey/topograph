@@ -17,3 +17,7 @@
 
 # Raw Data from OSM
 routeInfo/whitneyRaw.js
+
+# Where I'm storing backups of Spot XML feeds while testing
+testdata
+testdata/*

@@ -3,55 +3,62 @@ const whitneyTrailLandmarks = [
         "lat": "36.5593438",
         "lon": "-118.2915790",
         "tag": "Trail Crest",
-        "riverFord": null
-    },
-    {
-        "lat": "36.5593438",
-        "lon": "-118.2915790",
-        "tag": "Trail Crest",
-        "riverFord": null
+        "type": "junction"
     },
     {
         "lat": "36.5654812",
         "lon": "-118.2719387",
-        "tag": null,
-        "riverFord": "stepping_stones"
+        "tag": "stepping stones",
+        "type": "river ford"
     },
     {
         "lat": "36.5709070",
         "lon": "-118.2617096",
         "tag": null,
-        "riverFord": "yes"
+        "type": "river ford"
     },
     {
         "lat": "36.5719575",
         "lon": "-118.2592566",
         "tag": null,
-        "riverFord": "yes"
+        "type": "river ford"
     },
     {
         "lat": "36.5711046",
         "lon": "-118.2584299",
         "tag": null,
-        "riverFord": "yes"
+        "type": "river ford"
     },
     {
         "lat": "36.5868294",
         "lon": "-118.2453406",
         "tag": null,
-        "riverFord": "yes"
+        "type": "river ford"
     },
     {
         "lat": "36.5868781",
         "lon": "-118.2401401",
         "tag": "Whitney Portal Trailhead",
-        "riverFord": null
+        "type": "trailhead"
+    },
+    {
+        "lat": "36.562999",
+        "lon": "-118.278792",
+        "tag": "Trail Camp",
+        "type": "camp"
+    },
+    {
+        "lat": "36.588715",
+        "lon": "-118.229271",
+        "tag": "Whitney Portal Campground",
+        "type": "camp"
     },
     {
         "lat": "36.5785905",
         "lon": "-118.2921377",
         "tag": "Mount Whitney",
-        "riverFord": null
+        "type": "peak",
+        "hoverBoost": 0.2
     }
 ];
 

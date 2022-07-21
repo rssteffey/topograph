@@ -5,6 +5,7 @@ import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/Orb
 const pointsData = whitneyElevationData;
 const routeData = whitneyTrailData;
 const landmarkData = whitneyTrailLandmarks;
+const zoneData = whitneyZones;
 
 const spotFeedID = "0YKNZixWQl9CToVotgl85nW4jSkyJSEid";
 
@@ -16,6 +17,7 @@ const ELEVATION_BASE = -2;
 const ROUTE_HOVER = 0.01;
 const LANDMARK_HOVER = 0.01;
 const TRACK_HOVER = 0.03;
+const MOST_RECENT_BOOST = 0.01;
 
 const SMOOTHING_FACTOR = 0.15;
 
@@ -46,6 +48,7 @@ var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see ab
 
 var smoothedElevationGrid;
 var trackingPoints = []; //store tracking points to delete when pulling new data
+var landmarks = []; // Store to rotate towards camera
 
 const vertexMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const sideMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
@@ -170,19 +173,73 @@ function createRoute(){
 }
 
 function createLandmarks(){
-    var location = findVertexLocationFromLatLon(36.5868781, -118.2401401); //Trailhead
-    console.log(location);
+    for(var i = 0; i < landmarkData.length; i++){
+        if(landmarkData[i].type != null){
+            createLandmarkPoint(landmarkData[i]);
+        }
+    }
+}
 
-    const geometry = new THREE.CylinderGeometry( .09, .09, 0.03, 32 );
-    geometry.name = "Trailhead";
-    const material = getLandmarkMaterial("trailhead");
-    const cylinder = new THREE.Mesh( geometry, material );
-    cylinder.position.x = location.x;
-    cylinder.position.y = location.y + LANDMARK_HOVER;
-    cylinder.position.z = location.z;
-    recenterMap(cylinder);
-    console.log(cylinder.position);
-    scene.add( cylinder );
+function createLandmarkPoint(landmark){
+    var location = findVertexLocationFromLatLon(landmark.lat, landmark.lon);
+    const properties = getLandmarkProperties(landmark);
+    const geometry = new THREE.CylinderGeometry( properties.size, properties.size, properties.size / 4, 16 );
+    geometry.name = "LM-" + landmark.type + "-" + landmark.tag;
+    const marker = new THREE.Mesh( geometry, properties.material );
+    marker.position.x = location.x;
+    marker.position.y = location.y + LANDMARK_HOVER + properties.y_boost;
+    marker.position.z = location.z;
+    recenterMap(marker);
+    scene.add( marker );
+    landmarks.push(marker);
+}
+
+function getLandmarkProperties(landmark){
+    const textureLoader = new THREE.TextureLoader();
+    var texturePath;
+
+    var iconSize = 0.06;
+    var heightBoost = 0;
+
+    switch(landmark.type){
+        case "trailhead":
+            texturePath = "/assets/markers/hike.png";
+            break;
+        case "peak":
+            texturePath = "/assets/markers/mountain.png";
+            heightBoost = 0.04;
+            break;
+        case "junction":
+            texturePath = "/assets/markers/signs.png";
+            break;
+        case "camp":
+            texturePath = "/assets/markers/tent.png";
+            break;
+        case "treeline":
+            texturePath = "/assets/markers/trees.png";
+            iconSize = 0.03;
+            break;
+        case "river ford":
+            texturePath = "/assets/markers/water.png";
+            iconSize = 0.03;
+            break;
+        default:
+            texturePath = "/assets/markers/hike.png";
+    }
+
+    const texture = textureLoader.load(texturePath);
+    const markerMaterial = new THREE.MeshBasicMaterial({ map: texture });
+    return {
+        material: markerMaterial,
+        size: iconSize,
+        y_boost: heightBoost
+    };
+}
+
+function rotateLandmarksToFollowCamera(){
+    for(var i = 0; i < landmarks.length; i++){
+        landmarks[i].rotation.y = camera.rotation.z + (Math.PI / 2);
+    }
 }
 
 function createTrackingPath(feed){
@@ -194,7 +251,7 @@ function createTrackingPath(feed){
 
     // Latest point gets special dot
     if(feed.length > 0){
-        createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial);
+        createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, MOST_RECENT_BOOST);
     }
     if(feed.length >= 2){
         for(var i = 1; i < feed.length; i++){
@@ -203,7 +260,7 @@ function createTrackingPath(feed){
     }
 }
 
-function createTrackingPoint(lat, lon, type, timestamp, material){
+function createTrackingPoint(lat, lon, type, timestamp, material, boost = 0){
     const geometry = new THREE.CylinderGeometry( .04, .04, 0.01, 4 );
     geometry.name = "Tracker-" + timestamp;
     const point = new THREE.Mesh( geometry, material );
@@ -211,7 +268,7 @@ function createTrackingPoint(lat, lon, type, timestamp, material){
     var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
     var loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon);
     point.position.x = loc.x;
-    point.position.y = loc.y + TRACK_HOVER;
+    point.position.y = loc.y + TRACK_HOVER + boost;
     point.position.z = loc.z;
     recenterMap(point);
     scene.add( point );
@@ -359,6 +416,7 @@ function animate() {
     requestAnimationFrame(animate);
     raycaster.setFromCamera( mouse, camera );
     controls.update();
+    rotateLandmarksToFollowCamera();
     renderer.render(scene, camera);
 }
 
@@ -558,19 +616,6 @@ function interpolatePoint(index_z, index_x, elevation){
     return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + NENeighbor + NWNeighbor + SENeighbor + SWNeighbor + ( elevation * smoothingWeight))  / (8.0 + smoothingWeight);
 }
 
-function getLandmarkMaterial(landmarkType){
-    const textureLoader = new THREE.TextureLoader();
-    const texture = textureLoader.load(
-        '/assets/markers/hike.png',
-    );
-
-    const markerMaterial = new THREE.MeshBasicMaterial({
-        map: texture,
-    });
-
-    return markerMaterial;
-}
-
 function getMapSatelliteMaterial(){
     const textureLoader = new THREE.TextureLoader();
     const texture = textureLoader.load(textureAssetPath);
@@ -612,6 +657,26 @@ function checkIntersect()
 		INTERSECTED = null;
 	}
 }
+
+// Check if coordinates are within a defined polygon
+function insidePoly(point, vs) {
+    // ray-casting algorithm based on
+    // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
+    
+    var x = point[0], y = point[1];
+    
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i][0], yi = vs[i][1];
+        var xj = vs[j][0], yj = vs[j][1];
+        
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    
+    return inside;
+};
 
 
 //  Function to actually grab data from feed
