@@ -108,6 +108,11 @@ function init(){
     // Grab feed, delete old points, create new points
     getRemoteFeedData();
 
+    // Poll for new tracking points every 5 minutes
+    // Technically Spot sends tracking points every 10 minutes, but because of latency, time acquiring signal, etc, this ends up more like intervals of 7-13 minutes
+    // Since 10 minute polling would potentially leave 20 minute updates in half these cases, we're splitting the difference. (And hoping not to overwhelm Lambda)
+    setTimeout(getRemoteFeedData, 300000)
+
 	// when the mouse moves, call the given function
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 
@@ -629,7 +634,6 @@ function getMapSatelliteMaterial(){
 
 function getTrackingPointMaterial(index, length){
     var opacity = 1.0 - ((index * 1.0) / length);
-    console.log(opacity);
     var mat = new THREE.MeshBasicMaterial({
         transparent: true,
         color: 0x44dd44,
@@ -656,7 +660,7 @@ function checkIntersect()
 		if ( intersects[0].object != INTERSECTED ) 
 		{
 			INTERSECTED = intersects[ 0 ].object;
-            console.log(INTERSECTED);
+            //console.log(INTERSECTED);
 
             if(INTERSECTED.geometry.name == "Trailhead"){
                 INTERSECTED.scale.set(INTERSECTED.scale.x + 0.5, INTERSECTED.scale.y + 0.5, INTERSECTED.scale.z + 0.5)
