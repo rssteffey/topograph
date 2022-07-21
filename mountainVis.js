@@ -6,7 +6,7 @@ const pointsData = whitneyElevationData;
 const routeData = whitneyTrailData;
 const landmarkData = whitneyTrailLandmarks;
 
-const spotFeedID = "";
+const spotFeedID = "0YKNZixWQl9CToVotgl85nW4jSkyJSEid";
 
 const GRID_X_OFFSET = 0.1;
 const GRID_Z_OFFSET = 0.1;
@@ -40,15 +40,22 @@ var minElevation = pointsData.minElevation || 9000;   // Mt. Everest, submit a P
 var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see above
 
 var smoothedElevationGrid;
+var trackingPoints = []; //store tracking points to delete when pulling new data
 
 const material = new THREE.MeshBasicMaterial( { vertexColors: true } );
+const sideMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const lineMaterial = new THREE.LineBasicMaterial({
     linewidth: 1.3, 
     color: 0xff0000,
     linejoin:  'round',
     linecap: 'round',
-    
 });
+
+const trackingMaterial = new THREE.MeshBasicMaterial({color: 0x44dd44});
+
+// Hover checks
+var raycaster, INTERSECTED;
+var mouse = new THREE.Vector2();
 
 init();
 
@@ -82,27 +89,56 @@ function init(){
     
     scene.add(camera);
 
+    // initialize object to perform world/screen calculations
+	raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera( mouse, camera );
+
     createMountain();
     createRoute();
     createLandmarks();
+
+    // Grab feed, delete old points, create new points
+    getRemoteFeedData();
+
+	// when the mouse moves, call the given function
+	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 
     animate();
 }
 
 function createMountain(){
-    var vertices_array = [];
+
+    // For topo surface
+    var mtn_vertices_array = [];
     var cleanArray = cleanPointsData(pointsData);
-    vertices_array = pointsToTriangles(cleanArray);
+    mtn_vertices_array = pointsToTriangles(cleanArray);
 
     var mountainGeometry = new THREE.BufferGeometry();
 
-    mountainGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array.points, 3 ));
-    mountainGeometry.setAttribute('color', new THREE.Float32BufferAttribute( vertices_array.colors, 3 ));
+    mountainGeometry.setAttribute('position', new THREE.Float32BufferAttribute( mtn_vertices_array.points, 3 ));
+    mountainGeometry.setAttribute('color', new THREE.Float32BufferAttribute( mtn_vertices_array.colors, 3 ));
+    mountainGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(mtn_vertices_array.uvs, 2))
 
-    var mesh = new THREE.Mesh( mountainGeometry, material );
-    recenterMap(mesh);
-    console.log(mesh.position);
-    scene.add( mesh );
+    var satMaterial = getMapSatelliteMaterial();
+
+    var topoMesh = new THREE.Mesh( mountainGeometry, satMaterial );
+    recenterMap(topoMesh);
+    scene.add( topoMesh );
+
+    // Repeat for sidewalls mesh
+    var side_vertices_array = [];
+    var cleanArray = cleanPointsData(pointsData);
+    side_vertices_array = sidePointsToTriangles(cleanArray);
+
+    var sideGeometry = new THREE.BufferGeometry();
+
+    sideGeometry.setAttribute('position', new THREE.Float32BufferAttribute( side_vertices_array.points, 3 ));
+    sideGeometry.setAttribute('color', new THREE.Float32BufferAttribute( side_vertices_array.colors, 3 ));
+
+    var sideMesh = new THREE.Mesh( sideGeometry, sideMaterial );
+    recenterMap(sideMesh);
+    scene.add( sideMesh );
+
 }
 
 function createRoute(){
@@ -128,8 +164,9 @@ function createLandmarks(){
     var location = findVertexLocationFromLatLon(36.5868781, -118.2401401); //Trailhead
     console.log(location);
 
-    const geometry = new THREE.CylinderGeometry( .1, .1, 0.05, 32 );
-    const material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+    const geometry = new THREE.CylinderGeometry( .09, .09, 0.01, 32 );
+    geometry.name = "Trailhead";
+    const material = getLandmarkMaterial("trailhead");
     const cylinder = new THREE.Mesh( geometry, material );
     cylinder.position.x = location.x;
     cylinder.position.y = location.y;
@@ -137,6 +174,41 @@ function createLandmarks(){
     recenterMap(cylinder);
     console.log(cylinder.position);
     scene.add( cylinder );
+}
+
+function createTrackingPath(feed){
+
+    //delete old tracking objects
+    // loop trackingPoints and remove
+
+    for(var i = 0; i < feed.length; i++){
+        createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp);
+    }
+}
+
+function createTrackingPoint(lat, lon, type, timestamp){
+    const geometry = new THREE.CylinderGeometry( .04, .04, 0.01, 4 );
+    geometry.name = "Tracker-" + timestamp;
+    const cylinder = new THREE.Mesh( geometry, trackingMaterial );
+    // TEST FROM LOCERBIE (REMOVE BEFORE PROD)
+    var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
+    var loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon);
+    cylinder.position.x = loc.x;
+    cylinder.position.y = loc.y;
+    cylinder.position.z = loc.z;
+    recenterMap(cylinder);
+    console.log(cylinder.position);
+    scene.add( cylinder );
+}
+
+// Convert coordinates of local starting point (35.755874, -86.869595)
+// to Whitney trailhead (36.586942, -118.240147) for testing
+function offsetCoordinatesFromSpringHill(lat, lon){
+    var localTestStart = {lat: 35.755874, lon: -86.869595};
+    var trailheadStart = {lat: 36.586942, lon: -118.240147};
+    var offsetLat = localTestStart.lat - trailheadStart.lat;
+    var offsetLon = localTestStart.lon - trailheadStart.lon;
+    return { lat: lat - offsetLat, lon: lon - offsetLon};
 }
 
 function recenterMap(mesh){
@@ -260,6 +332,7 @@ function onWindowResize( event ) {
 
 function animate() {
     requestAnimationFrame(animate);
+    raycaster.setFromCamera( mouse, camera );
     controls.update();
     renderer.render(scene, camera);
 }
@@ -277,7 +350,7 @@ function pointsToTriangles(pointDataArray){
 
     var return_point_array = [];
     var return_color_array = [];
-    var return_scale_array = []
+    var return_uv_array = []
 
     for(var z = 0; z < pointDataArray.points.length - 1; z++){
         var points = pointDataArray.points;
@@ -294,6 +367,10 @@ function pointsToTriangles(pointDataArray){
             return_color_array.push(color1.r, color1.g, color1.b); // a
             return_color_array.push(color3.r, color3.g, color3.b); // ab
             return_color_array.push(color2.r, color2.g, color2.b); // b
+
+            return_uv_array.push(x / xSize, (zSize - z) / zSize);
+            return_uv_array.push((x+1) / xSize, (zSize -(z+1)) / zSize);
+            return_uv_array.push((x+1) / xSize, (zSize - z) / zSize);
             
             // Triangle 2 ◥
             return_point_array.push((x * GRID_X_OFFSET), (points[z][x].elevation * ELEVATION_MODIFIER) + ELEVATION_BOOST, (z * GRID_Z_OFFSET)  ); // a
@@ -308,8 +385,20 @@ function pointsToTriangles(pointDataArray){
             return_color_array.push(color3.r, color3.g, color3.b); // b
             return_color_array.push(color2.r, color2.g, color2.b); // ab
 
+            return_uv_array.push(x / xSize, (zSize - z) / zSize);
+            return_uv_array.push(x / xSize, (zSize - (z+1)) / zSize);
+            return_uv_array.push((x+1) / xSize, (zSize - (z+1)) / zSize);
         }
     }
+
+    return { points: return_point_array, colors: return_color_array, uvs: return_uv_array };
+}
+
+function sidePointsToTriangles(pointDataArray){
+    var return_point_array = [];
+    var return_color_array = [];
+
+    var points = pointDataArray.points;
 
     // Separate loop to add edge tris (enclose the bottom)
     var x_max = (pointDataArray.points[0].length - 1);
@@ -371,7 +460,7 @@ function pointsToTriangles(pointDataArray){
         }
     }
 
-    return { points: return_point_array, colors: return_color_array, scale: return_scale_array };
+    return { points: return_point_array, colors: return_color_array };
 }
 
 function getColorFromElevation(elevation){
@@ -444,13 +533,111 @@ function interpolatePoint(index_z, index_x, elevation){
     return ( eastNeighbor + westNeighbor + northNeighbor + southNeighbor + NENeighbor + NWNeighbor + SENeighbor + SWNeighbor + ( elevation * smoothingWeight))  / (8.0 + smoothingWeight);
 }
 
-// Todo: Function to access cached points feed, only hitting Spot API if system clock has been at least 10 minutes since last access
-// (Let's not risk accidentally getting our feed rate-limited/shut down)
-// @param pollLimit : time in seconds between 
-// function getLatestTrackingData(pollLimit)
+function getLandmarkMaterial(landmarkType){
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load(
+        '/assets/markers/hike.png',
+    );
 
-// Todo: Function to actually grab data from feed (swap this method to add other GPS unit support)
-// function getRemoteFeedData()
+    const markerMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+    });
+
+    return markerMaterial;
+}
+
+function getMapSatelliteMaterial(){
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load(
+        '/assets/whitneyTextureLowRes.png',
+    );
+
+    const satMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+    });
+
+    return satMaterial;
+}
+
+function onDocumentMouseMove( event ) 
+{
+	mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+	mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+    checkIntersect();
+}
+
+function checkIntersect()
+{
+	// create an array containing all objects in the scene with which the ray intersects
+	var intersects = raycaster.intersectObjects( scene.children, true );
+	// if there is one (or more) intersections
+	if ( intersects.length > 0 )
+	{
+		// if the closest object intersected is not the currently stored intersection object
+		if ( intersects[0].object != INTERSECTED ) 
+		{
+			INTERSECTED = intersects[ 0 ].object;
+            console.log(INTERSECTED);
+
+            if(INTERSECTED.geometry.name == "Trailhead"){
+                INTERSECTED.scale.set(INTERSECTED.scale.x + 0.5, INTERSECTED.scale.y + 0.5, INTERSECTED.scale.z + 0.5)
+            }
+		}
+	} 
+	else // there are no intersections
+	{
+		INTERSECTED = null;
+	}
+}
+
+
+//  Function to actually grab data from feed (swap these next few methods to add other GPS unit support)
+function getRemoteFeedData(){
+    const url = "https://wdwkhs4lxfbzzazoo6z4dgd6be0kwtpf.lambda-url.us-east-1.on.aws/?spotfeed=" + spotFeedID;
+    const http = new XMLHttpRequest();
+    http.open("GET", url);
+    http.send();
+
+    http.onreadystatechange = function() {
+        if(this.readyState == 4 && this.status==200){
+            var feed = normalizeSpotFeed(JSON.parse(http.responseText));
+            createTrackingPath(feed);
+        }
+    }
+}
 
 // Todo : Function to turn spot feed into generic points list (swap this to add other GPS unit support)
-// function normalizeSpotFeed(){}
+function normalizeSpotFeed(data){
+    console.log("Source: " + data.source);
+    var feed = [];
+    var respMessages = data.feed.response.feedMessageResponse.messages.message; //Ew, Spot.  What on earth?
+    for(var i = 0; i < respMessages.length; i++){
+        respMessages[i]
+        var trackingPoint = {
+            type: mapMessageType(respMessages[i].messageType),
+            lat: respMessages[i].latitude,
+            lon: respMessages[i].longitude,
+            timestamp: respMessages[i].unixTime
+        };
+        feed.push(trackingPoint);
+    }
+
+    return feed;
+}
+
+// Map to our standardized event types
+//   CHECK-IN
+//   TRACK
+//   MESSAGE
+function mapMessageType(type){
+    switch(type){
+        case "OK":
+            return "CHECK-IN";
+        case "TRACK":
+            return "TRACK";
+        case "MESSAGE":
+            return "MESSAGE";
+        default:
+            return "TRACK";
+    }
+}
