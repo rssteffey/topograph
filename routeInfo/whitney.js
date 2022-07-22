@@ -4,7 +4,7 @@ const whitneyTrailLandmarks = [
         "lon": "-118.2915790",
         "elev": "13,645 ft",
         "tag": "Trail Crest",
-        "info": "The junction of the Mount Whitney and John Muir trails; don't miss your turn",
+        "info": "The junction of the Mount Whitney Trail and the 211 mile John Muir Trail; don't miss your turn",
         "type": "junction"
     },
     {
@@ -46,8 +46,8 @@ const whitneyTrailLandmarks = [
     {
         "lat": "36.5868294",
         "lon": "-118.2453406",
-        "tag": "Lone Pine Creek Crossing",
-        "info": "One of many river crossings to wade during the trail",
+        "tag": "Creek Crossing",
+        "info": "One of many crossings to wade during the trail",
         "type": "river ford"
     },
     {
@@ -56,7 +56,8 @@ const whitneyTrailLandmarks = [
         "elev": "8,330 ft",
         "tag": "Whitney Portal Trailhead",
         "info": "The perfect spot to begin 6,150ft of elevation gain, and return point once we're at the end of our physical ability. (Fingers crossed the bears haven't taken an interest in our rental car contents)",
-        "type": "trailhead"
+        "type": "trailhead",
+        "hoverBoost": 0.01
     },
     {
         "lat": "36.562999",
@@ -72,7 +73,8 @@ const whitneyTrailLandmarks = [
         "elev": "8,300 ft",
         "tag": "Whitney Portal Campground",
         "info": "The last driveable & campable place before backpacking up the mountain",
-        "type": "camp"
+        "type": "camp",
+        "hoverBoost": 0.01
     },
     {
         "lat": "36.5785905",

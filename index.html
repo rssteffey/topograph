@@ -17,6 +17,7 @@
         <link rel="stylesheet" href="topo.css"/>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <script src="https://kit.fontawesome.com/cd30b69262.js" crossorigin="anonymous"></script>
         <link href="https://fonts.googleapis.com/css2?family=Ibarra+Real+Nova&family=Montserrat:wght@100;300;400;600&family=Rokkitt:wght@100&display=swap" rel="stylesheet">
 
     </head>
@@ -26,10 +27,55 @@
             <h3> 14,505 ft</h3>
             <h3 id="zone-title"></h3>
         </div>
+        <div id="legend" class="ui">
+            <div id="layers">
+                <div id="layers-toggle">
+                    <span>Layers</span>
+                    <i class="fa-solid fa-caret-right"></i>
+                </div>
+                <div id="toggles">
+                    <div class="toggle">
+                        <span class="toggle-label">Route</span>
+                        <label class="switch">
+                            <input type="checkbox" class="switch-check" value="route" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <hr/>
+                    <div class="toggle">
+                        <span class="toggle-label">Landmarks</span>
+                        <label class="switch">
+                            <input type="checkbox" class="switch-check" value="landmarks" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <hr/>
+                    <div class="toggle">
+                        <span class="toggle-label">Tracker History</span>
+                        <label class="switch">
+                            <input type="checkbox" class="switch-check" value="tracking" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <hr/>
+                    <div class="toggle">
+                        <span class="toggle-label">Compass</span>
+                        <label class="switch">
+                            <input type="checkbox" class="switch-check" value="compass">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div id="info-panel" class="ui hidden">
-            <h2 id="info-title">Title</h2>
-            <h3 id="info-elevation"></h3>
-            <p id="info-summary">Information about this thingamajig</p>
+            <div class="info-header">
+                <h2 id="info-title">Title</h2>
+                <h3 id="info-elevation"></h3>
+            </div>
+            <div class="info-body">
+                <p id="info-summary">Information about this thingamajig</p>
+            </div>
         </div>
         <div id="viewport"></div>
     </body>

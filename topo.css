@@ -15,6 +15,79 @@ html, body{
     position: absolute;
 }
 
+#legend {
+    right: 0;
+    top: 0;
+    border: 3px solid white;
+    border-radius: 1em;
+    margin: 1em;
+    font-family: 'Montserrat', sans-serif;
+    color: white;
+    background-color: #00000000;
+    transition: background-color 0.5s linear;
+}
+
+#legend.open {
+    background-color: #00000044;
+}
+
+#layers-toggle {
+    text-align: left;
+    color: white;
+    font-size: 2em;
+    padding: 10px 30px 10px 0;
+    
+}
+
+#layers-toggle:hover {
+    background-color: #ffffff44;
+}
+
+#layers-toggle span {
+    margin: 0 1em 0 1em;
+}
+
+#layers-toggle i {
+    float: right;
+    transition: transform 0.2s linear;
+}
+
+i.rotated{
+    transform: rotate(90deg);
+}
+
+  /* Style the collapsible content. Note: hidden by default */
+#toggles {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.2s ease-out;
+}
+
+#toggles hr{
+    background-color: #00000077;
+    height: 1px;
+    border: none;
+    margin: 0 1em 0 1em;
+}
+
+.toggle{
+    flex-direction: row;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0.4em 1em 0.4em 1em;
+}
+
+.toggle-label{
+    text-align: left;
+    margin-right: 0.5em;
+    font-size: 1.3em;
+}
+
+.toggle .switch{
+    float: right;
+}
+
 #info-panel{
     bottom: 0;
     right: 0;
@@ -22,20 +95,36 @@ html, body{
     max-width: 40%;
     margin: 2em;
     background-color: white;
-    padding: 1em;
-    border-radius: 1em;
-    outline: darkgreen 5px solid;
+    padding: 0;
+    border-radius: 0.4em;
+    outline: #8200c9 5px solid;
     /* min-height: 200px; */
     font-family: 'Montserrat', sans-serif;
     user-select: none;
     -webkit-user-select: none;
 }
 
+.info-header{
+    margin: 0;
+    background-color: #34B4B0;
+    color: #ffffff;
+    text-shadow: 2px 2px 2px #00000099;
+}
+
 #info-panel h2{
+    margin: 0;
+    padding: 20px 20px 0 20px;
     font-family: 'Montserrat', sans-serif;
 }
 
+#info-panel h3{
+    margin: 0;
+    padding: 0.5em 1em 0.5em 20px;
+}
+
 #info-panel p{
+    padding: 1em;
+    margin: 0;
     font-family: 'Ibarra Real Nova', serif;
     font-size: 1.1em;
 }
@@ -49,7 +138,7 @@ html, body{
     margin: 2em;
     font-family: 'Montserrat', sans-serif;
     font-size: 1.3em;
-    text-shadow: 1px 1px #000000;
+    text-shadow: 2px 2px 4px #00000099;
 }
 
 #map-title h2 {
@@ -63,4 +152,70 @@ html, body{
     font-weight: 200;
     font-size: 1.5em;
     margin-top: 0;
+}
+
+
+/* --- Toggles (Straight from W3 Schools) --- */
+
+/* The switch - the box around the slider */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The slider */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px);
+    transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
 }

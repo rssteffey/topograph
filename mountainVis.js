@@ -50,8 +50,13 @@ var smoothedElevationGrid;
 var trackingPoints = []; //store tracking points to delete when pulling new data
 var landmarks = []; // Store to rotate towards camera
 
+// Object references for toggleability visibility
+const landmarkAndOutlineParent = new THREE.Mesh();
 const landmarkParent = new THREE.Mesh();
 const outlineParent = new THREE.Mesh();
+const trackersParent = new THREE.Mesh();
+const routeParent = new THREE.Mesh();
+var compass;
 
 const vertexMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const sideMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
@@ -122,6 +127,9 @@ function init(){
     // Grab feed, delete old points, create new points
     getRemoteFeedData();
 
+    // Add additional visuals
+    createCompassRose();
+
 	// when the mouse moves, call the given function
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
     //document.addEventListener( 'click', , false );
@@ -141,9 +149,47 @@ function init(){
         }
     });
 
+    document.querySelectorAll('.switch-check').forEach((togg) => {togg.addEventListener('click', checkToggle)});
+    document.querySelector('#layers-toggle').addEventListener('click', collapse);
+
     infoPanel = document.getElementById("info-panel");
 
     animate();
+}
+
+function checkToggle(event){
+    var parentObject;
+    switch(event.target.value){
+        case "landmarks":
+            parentObject = landmarkAndOutlineParent;
+            break;
+        case "route":
+            parentObject = routeParent;
+            break;
+        case "tracking":
+            parentObject = trackersParent;
+            break;
+        case "compass":
+            parentObject = compass;
+            break;
+        default:
+            break;
+    }
+
+    parentObject.visible = event.target.checked;
+}
+
+function collapse(event){
+    //console.log(event);
+    event.target.classList.toggle("active");
+    document.querySelector('#layers-toggle i').classList.toggle("rotated");
+    document.querySelector('#legend').classList.toggle("open");
+    var content = document.querySelector('#toggles');
+    if (content.style.maxHeight){
+        content.style.maxHeight = null;
+    } else {
+        content.style.maxHeight = "200px";
+    }
 }
 
 function createMountain(){
@@ -199,12 +245,14 @@ function createRoute(){
     
         var lineGeometry = new THREE.BufferGeometry();
         lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
-        var line = new THREE.Line(lineGeometry, lineMaterial);
-        //moveCreatedMeshToPosition(line);
-        recenterMap(line);
+        var route = new THREE.Line(lineGeometry, lineMaterial);
+        route.name = "RoutePiece-" + w;
         
-        scene.add(line);
+        routeParent.add(route);
     }
+    recenterMap(routeParent);
+    routeParent.name = "Route";
+    scene.add(routeParent);
 }
 
 function createLandmarks(){
@@ -214,7 +262,6 @@ function createLandmarks(){
         }
     }
 
-    const landmarkAndOutlineParent = new THREE.Mesh();
     landmarkAndOutlineParent.add(landmarkParent);
     landmarkAndOutlineParent.add(outlineParent);
     scene.add(landmarkAndOutlineParent);
@@ -293,6 +340,16 @@ function getLandmarkProperties(landmark){
     };
 }
 
+function createCompassRose(){
+    var compassGeometry = new THREE.PlaneGeometry(13, 13);
+    compass = new THREE.Mesh(compassGeometry, getCompassMaterial(0.4));
+    //recenterMap(compass);
+    compass.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / -2);
+    compass.position.y = -2;
+    compass.visible = false;
+    scene.add(compass);
+}
+
 function rotateLandmarksToFollowCamera(){
     for(var i = 0; i < landmarks.length; i++){
         landmarks[i].rotation.y = camera.rotation.z + (Math.PI / 2);
@@ -316,20 +373,30 @@ function createTrackingPath(feed){
             createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length));
         }
     }
+
+    scene.add(trackersParent);
 }
 
-function createTrackingPoint(lat, lon, type, timestamp, material, boost = 0){
+function createTrackingPoint(lat, lon, type, timestamp, material, isMostRecent = false){
     const geometry = new THREE.CylinderGeometry( .04, .04, 0.01, 4 );
     geometry.name = "Tracker-" + timestamp;
     const point = new THREE.Mesh( geometry, material );
     // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
     var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
     var loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon);
+    var boost = isMostRecent ? MOST_RECENT_BOOST : 0;
     point.position.x = loc.x;
     point.position.y = loc.y + TRACK_HOVER + boost;
     point.position.z = loc.z;
     recenterMap(point);
-    scene.add( point );
+
+    if(isMostRecent){
+        point.name = "MostRecentTracker";
+        scene.add(point);
+    } else {
+        point.name="Tracking-" + timestamp;
+        trackersParent.add( point );
+    }
 
     trackingPoints.push(point)
 }
@@ -683,6 +750,19 @@ function getMapSatelliteMaterial(){
     });
 
     return satMaterial;
+}
+
+function getCompassMaterial(opac){
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load("/assets/compass.png");
+
+    const compMat = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: opac,
+        map: texture,
+    });
+
+    return compMat;
 }
 
 function getTrackingPointMaterial(index, length){
