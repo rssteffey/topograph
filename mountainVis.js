@@ -15,7 +15,7 @@ const ELEVATION_MODIFIER = 0.0009;
 const ELEVATION_BOOST = -4;
 const ELEVATION_BASE = -2;
 const ROUTE_HOVER = 0.01;
-const LANDMARK_HOVER = 0.01;
+const LANDMARK_HOVER = .01;
 const TRACK_HOVER = 0.03;
 const MOST_RECENT_BOOST = 0.01;
 
@@ -50,6 +50,9 @@ var smoothedElevationGrid;
 var trackingPoints = []; //store tracking points to delete when pulling new data
 var landmarks = []; // Store to rotate towards camera
 
+const landmarkParent = new THREE.Mesh();
+const outlineParent = new THREE.Mesh();
+
 const vertexMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const sideMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const lineMaterial = new THREE.LineBasicMaterial({
@@ -58,12 +61,23 @@ const lineMaterial = new THREE.LineBasicMaterial({
     linejoin:  'round',
     linecap: 'round',
 });
+const outlineMaterial = new THREE.MeshBasicMaterial( { 
+    color: 0xffffff,
+    side: THREE.BackSide
+} );
 
 const trackingHighlightMaterial = new THREE.MeshBasicMaterial({color: 0xdddd44});
 
 // Hover checks
 var raycaster, INTERSECTED;
 var mouse = new THREE.Vector2();
+
+// Click Checks
+const mouseDelta = 6;
+let startX;
+let startY;
+
+var infoPanel;
 
 init();
 
@@ -108,13 +122,26 @@ function init(){
     // Grab feed, delete old points, create new points
     getRemoteFeedData();
 
-    // Poll for new tracking points every 5 minutes
-    // Technically Spot sends tracking points every 10 minutes, but because of latency, time acquiring signal, etc, this ends up more like intervals of 7-13 minutes
-    // Since 10 minute polling would potentially leave 20 minute updates in half these cases, we're splitting the difference. (And hoping not to overwhelm Lambda)
-    setTimeout(getRemoteFeedData, 300000)
-
 	// when the mouse moves, call the given function
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+    //document.addEventListener( 'click', , false );
+
+    document.addEventListener('mousedown', function (event) {
+        startX = event.pageX;
+        startY = event.pageY;
+    });
+
+    document.addEventListener('mouseup', function (event) {
+        const diffX = Math.abs(event.pageX - startX);
+        const diffY = Math.abs(event.pageY - startY);
+
+        // Click! (Not drag)
+        if (diffX < mouseDelta && diffY < mouseDelta) {
+            onDocumentMouseClick(event);
+        }
+    });
+
+    infoPanel = document.getElementById("info-panel");
 
     animate();
 }
@@ -137,6 +164,8 @@ function createMountain(){
         var mountMaterial = getMapSatelliteMaterial(textureAssetPath);
     }
 
+    mountainGeometry.name = "topo";
+
     var topoMesh = new THREE.Mesh( mountainGeometry, mountMaterial );
     recenterMap(topoMesh);
     scene.add( topoMesh );
@@ -150,6 +179,8 @@ function createMountain(){
 
     sideGeometry.setAttribute('position', new THREE.Float32BufferAttribute( side_vertices_array.points, 3 ));
     sideGeometry.setAttribute('color', new THREE.Float32BufferAttribute( side_vertices_array.colors, 3 ));
+
+    sideGeometry.name = "sides";
 
     var sideMesh = new THREE.Mesh( sideGeometry, sideMaterial );
     recenterMap(sideMesh);
@@ -179,23 +210,43 @@ function createRoute(){
 function createLandmarks(){
     for(var i = 0; i < landmarkData.length; i++){
         if(landmarkData[i].type != null){
-            createLandmarkPoint(landmarkData[i]);
+            createLandmarkPoint(landmarkData[i], i);
         }
     }
+
+    const landmarkAndOutlineParent = new THREE.Mesh();
+    landmarkAndOutlineParent.add(landmarkParent);
+    landmarkAndOutlineParent.add(outlineParent);
+    scene.add(landmarkAndOutlineParent);
 }
 
-function createLandmarkPoint(landmark){
+function createLandmarkPoint(landmark, index){
     var location = findVertexLocationFromLatLon(landmark.lat, landmark.lon);
     const properties = getLandmarkProperties(landmark);
     const geometry = new THREE.CylinderGeometry( properties.size, properties.size, properties.size / 4, 16 );
-    geometry.name = "LM-" + landmark.type + "-" + landmark.tag;
+    geometry.name = "LM-" + index + "-" + landmark.type + "-" + landmark.tag;
     const marker = new THREE.Mesh( geometry, properties.material );
     marker.position.x = location.x;
     marker.position.y = location.y + LANDMARK_HOVER + properties.y_boost;
     marker.position.z = location.z;
     recenterMap(marker);
-    scene.add( marker );
+    marker.name = "LM-" + index + "-" + landmark.type + "-" + landmark.tag;
+    landmarkParent.add( marker );
     landmarks.push(marker);
+
+    // Add outline mesh to render when hovered
+    const OUTLINE_WIDTH = 0.01;
+    const outline = new THREE.CylinderGeometry( properties.size + OUTLINE_WIDTH, properties.size + OUTLINE_WIDTH, (properties.size + OUTLINE_WIDTH) / 4, 16 );
+    outline.name = "O-LM-" + index + "-" + landmark.type + "-" + landmark.tag;
+    const markerOutline = new THREE.Mesh( outline, outlineMaterial );
+    markerOutline.position.x = location.x;
+    markerOutline.position.y = location.y + LANDMARK_HOVER + properties.y_boost;
+    markerOutline.position.z = location.z;
+    recenterMap(markerOutline);
+    markerOutline.name = "O-LM-" + index + "-" + landmark.type + "-" + landmark.tag;
+    markerOutline.visible = false;
+    outlineParent.add(markerOutline);
+    
 }
 
 function getLandmarkProperties(landmark){
@@ -642,33 +693,72 @@ function getTrackingPointMaterial(index, length){
     return mat;
 }
 
-function onDocumentMouseMove( event ) 
-{
+function onDocumentMouseMove( event ){
 	mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
 	mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
     checkIntersect();
 }
 
+function onDocumentMouseClick( event ){
+    // Use INTERSECT to grab information and update the panel if landmark
+    if(INTERSECTED && INTERSECTED.name.startsWith("LM")){
+        //console.log(INTERSECTED);
+        var index = INTERSECTED.name.split("-")[1];
+
+        showInfoPanel({
+            title: landmarkData[index].tag,
+            elevation: landmarkData[index].elev,
+            information: landmarkData[index].info,
+            icon: "fa-tree"
+        });
+    }
+
+    // No valid objects clicked on
+    if(!INTERSECTED){
+        hideInfoPanel();
+    }
+}
+
+function hideInfoPanel(){
+    infoPanel.classList.add("hidden");
+}
+
+function showInfoPanel(data){
+    document.getElementById("info-title").textContent = data.title;
+    document.getElementById("info-summary").textContent = data.information;
+    document.getElementById("info-elevation").textContent = data.elevation;
+    infoPanel.classList.remove("hidden");
+}
+
 function checkIntersect()
 {
 	// create an array containing all objects in the scene with which the ray intersects
-	var intersects = raycaster.intersectObjects( scene.children, true );
+	var intersects = raycaster.intersectObjects( landmarkParent.children, true );
+
+    // intersects = intersects.filter(function(item) {
+    //     return item.object.geometry.name !== "topo" && item.object.geometry.name !== "sides"
+    // })
+
 	// if there is one (or more) intersections
 	if ( intersects.length > 0 )
 	{
 		// if the closest object intersected is not the currently stored intersection object
 		if ( intersects[0].object != INTERSECTED ) 
 		{
-			INTERSECTED = intersects[ 0 ].object;
-            //console.log(INTERSECTED);
+			INTERSECTED = intersects[0].object;
 
-            if(INTERSECTED.geometry.name == "Trailhead"){
-                INTERSECTED.scale.set(INTERSECTED.scale.x + 0.5, INTERSECTED.scale.y + 0.5, INTERSECTED.scale.z + 0.5)
+            if(INTERSECTED.geometry.name.startsWith("LM-")){
+                var outline = outlineParent.getObjectByName("O-" + INTERSECTED.geometry.name);
+                outline.visible = true;
             }
 		}
 	} 
 	else // there are no intersections
 	{
+        if(INTERSECTED){
+            var outline = outlineParent.getObjectByName("O-" + INTERSECTED.geometry.name);
+            outline.visible = false;
+        }
 		INTERSECTED = null;
 	}
 }
@@ -702,6 +792,11 @@ function getRemoteFeedData(){
     const http = new XMLHttpRequest();
     http.open("GET", url);
     http.send();
+
+    // Poll for new tracking points every 5 minutes
+    // Technically Spot sends tracking points every 10 minutes, but because of latency, time acquiring signal, etc, this ends up more like intervals of 7-13 minutes
+    // Since 10 minute polling would potentially leave 20 minute updates in half these cases, we're splitting the difference. (And hoping not to overwhelm Lambda)
+    setTimeout(getRemoteFeedData, 300000)
 
     http.onreadystatechange = function() {
         if(this.readyState == 4 && this.status==200){

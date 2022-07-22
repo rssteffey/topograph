@@ -15,6 +15,35 @@ html, body{
     position: absolute;
 }
 
+#info-panel{
+    bottom: 0;
+    right: 0;
+    min-width: 40%;
+    max-width: 40%;
+    margin: 2em;
+    background-color: white;
+    padding: 1em;
+    border-radius: 1em;
+    outline: darkgreen 5px solid;
+    /* min-height: 200px; */
+    font-family: 'Montserrat', sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#info-panel h2{
+    font-family: 'Montserrat', sans-serif;
+}
+
+#info-panel p{
+    font-family: 'Ibarra Real Nova', serif;
+    font-size: 1.1em;
+}
+
+.hidden{
+    display: none;
+}
+
 #map-title {
     color: #ffffff;
     margin: 2em;

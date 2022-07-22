@@ -2,61 +2,76 @@ const whitneyTrailLandmarks = [
     {
         "lat": "36.5593438",
         "lon": "-118.2915790",
+        "elev": "13,645 ft",
         "tag": "Trail Crest",
+        "info": "The junction of the Mount Whitney and John Muir trails; don't miss your turn",
         "type": "junction"
     },
     {
         "lat": "36.5654812",
         "lon": "-118.2719387",
-        "tag": "stepping stones",
+        "tag": "Creek Crossing",
+        "info": "One of many river crossings on the way up the trail (although this one has stepping stones)",
         "type": "river ford"
     },
     {
         "lat": "36.5709070",
         "lon": "-118.2617096",
-        "tag": null,
+        "tag": "Lone Pine Creek Crossing",
+        "info": "One of many river crossings to wade during the trail",
         "type": "river ford"
     },
     {
         "lat": "36.5719575",
         "lon": "-118.2592566",
-        "tag": null,
+        "tag": "Lone Pine Creek Crossing",
+        "info": "One of many river crossings to wade during the trail",
         "type": "river ford"
     },
     {
         "lat": "36.5711046",
         "lon": "-118.2584299",
-        "tag": null,
+        "tag": "Lone Pine Creek Crossing",
+        "info": "One of many river crossings to wade during the trail",
         "type": "river ford"
     },
     {
         "lat": "36.5868294",
         "lon": "-118.2453406",
-        "tag": null,
+        "tag": "Lone Pine Creek Crossing",
+        "info": "One of many river crossings to wade during the trail",
         "type": "river ford"
     },
     {
         "lat": "36.5868781",
         "lon": "-118.2401401",
+        "elev": "8,330 ft",
         "tag": "Whitney Portal Trailhead",
+        "info": "The perfect spot to begin 6,150ft of elevation gain, and return point once we're at the end of our physical ability. (Fingers crossed the bears haven't taken an interest in our rental car contents)",
         "type": "trailhead"
     },
     {
         "lat": "36.562999",
         "lon": "-118.278792",
+        "elev": "12,000 ft",
         "tag": "Trail Camp",
+        "info": "Our home for 2 nights, and the last dependable water source before the summit (Filtering out giardia recommended)",
         "type": "camp"
     },
     {
         "lat": "36.588715",
         "lon": "-118.229271",
+        "elev": "8,300 ft",
         "tag": "Whitney Portal Campground",
+        "info": "The last driveable & campable place before backpacking up the mountain",
         "type": "camp"
     },
     {
         "lat": "36.5785905",
         "lon": "-118.2921377",
-        "tag": "Mount Whitney",
+        "tag": "Mount Whitney Summit",
+        "elev": "14,505 feet",
+        "info": "The highest point in the lower 48 states.",
         "type": "peak",
         "hoverBoost": 0.2
     }
