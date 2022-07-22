@@ -45,6 +45,7 @@ var viewport, renderer, camera, controls;
 
 var minElevation = pointsData.minElevation || 9000;   // Mt. Everest, submit a PR if you discovered something taller
 var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see above
+var minSafeLat, minSafeLon, maxSafeLat, maxSafeLon;
 
 var smoothedElevationGrid;
 var trackingPoints = []; //store tracking points to delete when pulling new data
@@ -56,6 +57,7 @@ const landmarkParent = new THREE.Mesh();
 const outlineParent = new THREE.Mesh();
 const trackersParent = new THREE.Mesh();
 const routeParent = new THREE.Mesh();
+const zoneParent = new THREE.Mesh();
 var compass;
 
 const vertexMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
@@ -63,6 +65,12 @@ const sideMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const lineMaterial = new THREE.LineBasicMaterial({
     linewidth: 1.3, 
     color: 0xff0000,
+    linejoin:  'round',
+    linecap: 'round',
+});
+const zoneMaterial = new THREE.LineBasicMaterial({
+    linewidth: 2, 
+    color: 0x4400dd,
     linejoin:  'round',
     linecap: 'round',
 });
@@ -119,6 +127,9 @@ function init(){
     // initialize object to perform world/screen calculations
 	raycaster = new THREE.Raycaster();
     raycaster.setFromCamera( mouse, camera );
+
+    // Update boundary box for point plotting
+    findSafeBoundsForPoints();
 
     createMountain();
     createRoute();
@@ -366,6 +377,11 @@ function createTrackingPath(feed){
     // Latest point gets special dot
     if(feed.length > 0){
         createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, MOST_RECENT_BOOST);
+        // Update zone tracker
+        var altitude = feed[0].altitude ? feed[0].altitude : 0;
+        // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
+        var tempLoc = offsetCoordinatesFromSpringHill(feed[0].lat, feed[0].lon);
+        updateZone(tempLoc.lat, tempLoc.lon, metersToFeet(altitude));
     }
     // Older points fade to non-existence
     if(feed.length >= 2){
@@ -418,6 +434,44 @@ function offsetCoordinatesFromSpringHill(lat, lon){
     return { lat: lat - offsetLat, lon: lon - offsetLon};
 }
 
+function updateZone(lat, lon, altitude){
+
+    var zoneName = "Inyo National Forest";
+    var zoneDetails = "Home for three days";
+    var zoneElevation = altitude;
+
+    for(var i = 0; i < zoneData.length; i++){
+        // Draw zone lines (Testing only, enable material visibility for debugging)
+        var vertices_array = [];
+        for(var j = 0; j < zoneData[i].polygonPoints.length; j++){
+            var location = findVertexLocationFromLatLon(zoneData[i].polygonPoints[j][0], zoneData[i].polygonPoints[j][1]);
+            vertices_array.push(location.x, location.y, location.z);
+        }
+    
+        var zoneGeometry = new THREE.BufferGeometry();
+        zoneGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
+        var zone = new THREE.Line(zoneGeometry, zoneMaterial);
+        zone.name = "Zone-" + zoneData[i].name;
+        
+        zoneParent.add(zone);
+
+        if( insidePoly([lat, lon], zoneData[i].polygonPoints)){
+            console.log("Within zone " + zoneData[i].name );
+            zoneName = zoneData[i].name;
+            zoneDetails = zoneData[i].info;
+            zoneElevation = (zoneData[i].elevation && zoneElevation <= 0) ? zoneData[i].elevation : zoneElevation;
+        }
+    }
+    // Update tracking panels with zone info
+    document.getElementById("zone-elevation").textContent = zoneElevation > 0 ? "Currently at " + zoneElevation + "ft" : "Currently at ";
+    document.getElementById("zone-name").textContent = zoneName;
+    //document.getElementById("zone-info").textContent = zoneDetails;
+    
+    
+    recenterMap(zoneParent);
+    scene.add(zoneParent);
+}
+
 function recenterMap(mesh){
     // Translate by half the map length and width to center over 0,0
     var zSize = smoothedElevationGrid.points.length * GRID_Z_OFFSET;
@@ -434,6 +488,19 @@ function moveCreatedMeshToPosition(mesh){
 }
 
 function findVertexLocationFromLatLon(latitude, longitude){
+    const safetyMargin = 0.000001;
+    // If lat or lon is beyond map bounds, cap it (slightly within)
+    if(latitude >= maxSafeLat){
+        latitude = maxSafeLat - safetyMargin;
+    } else if(latitude <= minSafeLat){
+        latitude = minSafeLat + safetyMargin;
+    }
+    if(longitude >= maxSafeLon){
+        longitude = maxSafeLon - safetyMargin;
+    } else if(longitude <= minSafeLon){
+        longitude = minSafeLon + safetyMargin;
+    }
+
     var neighbors = findNeighborsFromLatLon(latitude, longitude);
     // Take four neighbors and compute grid position & elevation from distances and GRID_X_OFFSET / GRID_Z_OFFSET
     var x = (neighbors[0].x + neighbors[0].x_dist) * GRID_X_OFFSET ;
@@ -688,6 +755,27 @@ function getColorFromElevation(elevation){
     return new THREE.Color(lerpColor(colorScheme[0], colorScheme[1], ratio));;
 }
 
+/* 
+*  Determine safe mins/maxs to check neighbors in
+*/
+function findSafeBoundsForPoints(){
+    // Because of the choice I made early on to abstract lat/lon out of the equation and solve everything in reverse from grid indices has bit me a tiny bit
+    // There are two equally hacky solutions, but this one feels better for the final result (Don't allow any points to be plotted outside the map bounds)
+    // We need a safe bounding box, which means finding the minimum edge value for each direction. (Since we converted from polar coordinates and that makes things wonky)
+
+    // by all my thinking, latitude SHOULD be consistent across any given row, but unfortunately that's not the reuslts we got back from Google
+    // I don't have a good explanation for why this varied while the Westernmost Longitude line is consistent as I'd expect.  Regardless, picking the smaller instance for safety
+    var points = pointsData.points;
+    
+    var maxA = points.length - 1;
+    var maxB = points[0].length - 1;
+
+    minSafeLat = points[maxA][0].latitude;
+    minSafeLon = points[maxA][0].longitude; //Westernmost Longitude is consistent so [0,0] would have worked too, I just picked for symmetry with the Latitude variance
+    maxSafeLat = points[0][maxB].latitude;
+    maxSafeLon = points[0][maxB].longitude;
+}
+
 function metersToFeet(meters){
     return meters * 3.28084;
 }
@@ -791,7 +879,7 @@ function onDocumentMouseClick( event ){
             title: landmarkData[index].tag,
             elevation: landmarkData[index].elev,
             information: landmarkData[index].info,
-            icon: "fa-tree"
+            icon: landmarkData[index].iconname
         });
     }
 
@@ -810,6 +898,12 @@ function showInfoPanel(data){
     document.getElementById("info-summary").textContent = data.information;
     document.getElementById("info-elevation").textContent = data.elevation;
     infoPanel.classList.remove("hidden");
+
+    //swap icon
+    var icon = document.getElementById("info-icon");
+    icon.removeAttribute('class');
+    icon.classList.add('fa-solid');
+    icon.className += ' ' + data.icon;
 }
 
 function checkIntersect()

@@ -11,8 +11,9 @@ const whitneyZones = [
         ]
     },
     {
-        name: "Whitney Portal Campground",
+        name: "Whitney Portal",
         info: "The departure point for the primary Mt. Whitney Trail",
+        elevation: 8300,
         polygonPoints: [
             [36.586862, -118.243744],
             [36.593159, -118.230539],

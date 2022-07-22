@@ -22,10 +22,12 @@
 
     </head>
     <body>
-        <div id="map-title"  class="ui">
+        <div id="map-title"  class="ui map-title">
             <h2> Mount Whitney</h2>
-            <h3> 14,505 ft</h3>
-            <h3 id="zone-title"></h3>
+            <hr/>
+            <h3 id="zone-elevation"> </h3>
+            <h3 id="zone-name"> </h3>
+            <!-- <h3 id="zone-info"> </h3> -->
         </div>
         <div id="legend" class="ui">
             <div id="layers">
@@ -70,8 +72,11 @@
         </div>
         <div id="info-panel" class="ui hidden">
             <div class="info-header">
-                <h2 id="info-title">Title</h2>
-                <h3 id="info-elevation"></h3>
+                <div class="text-data">
+                    <h2 id="info-title">Title</h2>
+                    <h3 id="info-elevation"></h3>
+                </div>
+                <i id="info-icon" class="fa-solid fa-check"></i>
             </div>
             <div class="info-body">
                 <p id="info-summary">Information about this thingamajig</p>

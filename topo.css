@@ -64,7 +64,7 @@ i.rotated{
 }
 
 #toggles hr{
-    background-color: #00000077;
+    background-color: #ffffff44;
     height: 1px;
     border: none;
     margin: 0 1em 0 1em;
@@ -97,8 +97,7 @@ i.rotated{
     background-color: white;
     padding: 0;
     border-radius: 0.4em;
-    outline: #8200c9 5px solid;
-    /* min-height: 200px; */
+    outline: #ffffff 5px solid;
     font-family: 'Montserrat', sans-serif;
     user-select: none;
     -webkit-user-select: none;
@@ -106,9 +105,18 @@ i.rotated{
 
 .info-header{
     margin: 0;
-    background-color: #34B4B0;
+    background-color: #4380c1;
     color: #ffffff;
     text-shadow: 2px 2px 2px #00000099;
+    display: flex;
+    justify-content: space-between;
+}
+
+.info-header i {
+    font-size: 3em;
+    float: right;
+    margin: 0.5em;
+    text-shadow: none;
 }
 
 #info-panel h2{
@@ -133,7 +141,7 @@ i.rotated{
     display: none;
 }
 
-#map-title {
+.map-title {
     color: #ffffff;
     margin: 2em;
     font-family: 'Montserrat', sans-serif;
@@ -141,17 +149,36 @@ i.rotated{
     text-shadow: 2px 2px 4px #00000099;
 }
 
-#map-title h2 {
+.map-title h2 {
     font-weight: 600;
     font-size: 2em;
     margin-bottom: 0.1em;
     margin-top: 0;
 }
 
-#map-title h3 {
+.map-title h3 {
     font-weight: 200;
-    font-size: 1.5em;
     margin-top: 0;
+    margin-bottom: 0;
+}
+
+.map-title hr {
+    border: none;
+    height: 1px;
+    background-color: #ffffffaa;
+}
+
+#zone-name {
+    font-size: 1.5em;
+    margin-bottom: 0.2em;
+}
+
+#zone-elevation {
+    font-size: 1em;
+}
+
+#zone-info {
+    font-size: 1em;
 }
 
 
