@@ -226,8 +226,9 @@ function createLandmarkPoint(landmark, index){
     const geometry = new THREE.CylinderGeometry( properties.size, properties.size, properties.size / 4, 16 );
     geometry.name = "LM-" + index + "-" + landmark.type + "-" + landmark.tag;
     const marker = new THREE.Mesh( geometry, properties.material );
+    const y_boost = landmark.hoverBoost ? landmark.hoverBoost : 0;
     marker.position.x = location.x;
-    marker.position.y = location.y + LANDMARK_HOVER + properties.y_boost;
+    marker.position.y = location.y + LANDMARK_HOVER + y_boost;
     marker.position.z = location.z;
     recenterMap(marker);
     marker.name = "LM-" + index + "-" + landmark.type + "-" + landmark.tag;
@@ -240,7 +241,7 @@ function createLandmarkPoint(landmark, index){
     outline.name = "O-LM-" + index + "-" + landmark.type + "-" + landmark.tag;
     const markerOutline = new THREE.Mesh( outline, outlineMaterial );
     markerOutline.position.x = location.x;
-    markerOutline.position.y = location.y + LANDMARK_HOVER + properties.y_boost;
+    markerOutline.position.y = location.y + LANDMARK_HOVER + y_boost;
     markerOutline.position.z = location.z;
     recenterMap(markerOutline);
     markerOutline.name = "O-LM-" + index + "-" + landmark.type + "-" + landmark.tag;
@@ -262,10 +263,12 @@ function getLandmarkProperties(landmark){
             break;
         case "peak":
             texturePath = "/assets/markers/mountain.png";
-            heightBoost = 0.04;
             break;
         case "junction":
             texturePath = "/assets/markers/signs.png";
+            break;
+        case "switchbacks":
+            texturePath = "/assets/markers/switchback.png";
             break;
         case "camp":
             texturePath = "/assets/markers/tent.png";
@@ -286,8 +289,7 @@ function getLandmarkProperties(landmark){
     const markerMaterial = new THREE.MeshBasicMaterial({ map: texture });
     return {
         material: markerMaterial,
-        size: iconSize,
-        y_boost: heightBoost
+        size: iconSize
     };
 }
 

@@ -8,6 +8,14 @@ const whitneyTrailLandmarks = [
         "type": "junction"
     },
     {
+        "lat": "36.562140",
+        "lon": "-118.286517",
+        "tag": "The 99 Switchbacks",
+        "info": "Technically 97, but who's counting?  This chunk of steep zig-zagging will be most of our morning; with any luck we'll make Trail Crest before sunrise",
+        "type": "switchbacks",
+        "hoverBoost": 0.03
+    },
+    {
         "lat": "36.5654812",
         "lon": "-118.2719387",
         "tag": "Creek Crossing",
@@ -73,7 +81,7 @@ const whitneyTrailLandmarks = [
         "elev": "14,505 feet",
         "info": "The highest point in the lower 48 states.",
         "type": "peak",
-        "hoverBoost": 0.2
+        "hoverBoost": 0.05
     }
 ];
 
