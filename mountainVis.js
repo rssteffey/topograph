@@ -317,27 +317,30 @@ function getLandmarkProperties(landmark){
 
     switch(landmark.type){
         case "trailhead":
-            texturePath = "/assets/markers/hike.png";
+            texturePath = "assets/markers/hike.png";
             break;
         case "peak":
-            texturePath = "/assets/markers/mountain.png";
+            texturePath = "assets/markers/mountain.png";
             break;
         case "junction":
-            texturePath = "/assets/markers/signs.png";
+            texturePath = "assets/markers/signs.png";
             break;
         case "switchbacks":
-            texturePath = "/assets/markers/switchback.png";
+            texturePath = "assets/markers/switchback.png";
             break;
         case "camp":
-            texturePath = "/assets/markers/tent.png";
+            texturePath = "assets/markers/tent.png";
             break;
         case "treeline":
-            texturePath = "/assets/markers/trees.png";
+            texturePath = "assets/markers/trees.png";
             iconSize = 0.03;
             break;
         case "river ford":
-            texturePath = "/assets/markers/water.png";
+            texturePath = "assets/markers/water.png";
             iconSize = 0.03;
+            break;
+        case "lake":
+            texturePath = "assets/markers/water.png";
             break;
         default:
             texturePath = "/assets/markers/hike.png";
@@ -469,6 +472,7 @@ function updateZone(lat, lon, altitude){
     
     
     recenterMap(zoneParent);
+    zoneParent.visible = false;
     scene.add(zoneParent);
 }
 
@@ -842,7 +846,7 @@ function getMapSatelliteMaterial(){
 
 function getCompassMaterial(opac){
     const textureLoader = new THREE.TextureLoader();
-    const texture = textureLoader.load("/assets/compass.png");
+    const texture = textureLoader.load("assets/compass.png");
 
     const compMat = new THREE.MeshBasicMaterial({
         transparent: true,

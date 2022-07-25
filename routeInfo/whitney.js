@@ -12,7 +12,8 @@ const whitneyTrailLandmarks = [
         "lat": "36.562140",
         "lon": "-118.286517",
         "tag": "The 99 Switchbacks",
-        "info": "Technically 97, but who's counting?  This chunk of steep zig-zagging will be most of our morning; with any luck we'll make Trail Crest before sunrise",
+        "info": "Technically 97, but who's counting?  This chunk of steep zig-zagging will be most of our morning; with any luck we'll make Trail Crest before sunrise.",
+        "link": "https://4055b5b7-a-62cb3a1a-s-sites.googlegroups.com/site/mtwhitneytrailinfo/MtWhitneyTrail/waypoints/WaynePyle97Switchbacks.pdf?attachauth=ANoY7crMqLkQvtDI0u4-gEw_Jk3PmgAYSSE7einW856Fi23PldSSag-rtzMIZ-9u0PgsbVlOf59C6Bwl6VS9erSUXlGejCoaSE7cE2HpsDy_EEWmFF5xc1Z8zwMGmbre-ntJHyr7FTL4jTbKanoQz2VnSrhsXk-1gbDOisRjH3X-caGl3_yaOUsEyKs44ElO0g-UeFr10FmV6GE3eqtyd1ff2VZrsPfFj4vTsx7vy3Nm3x4xfT1RyZEt1YenHVgx4Z5a73X4r6KxpLQWIgm_57g3utoPAILdRA%3D%3D&attredirects=0",
         "type": "switchbacks",
         "hoverBoost": 0.03,
         "iconname": "fa-s fa-flip-horizontal"
@@ -95,7 +96,28 @@ const whitneyTrailLandmarks = [
         "type": "peak",
         "hoverBoost": 0.05,
         "iconname": "fa-mountain"
-    }
+    },
+    {
+        "lat": "36.576387",
+        "lon": "-118.248317",
+        "tag": "Lone Pine Lake",
+        "elev": "10,050 feet",
+        "info": "2.5 Miles into the woods and the first significant checkpoint",
+        "type": "lake",
+        "hoverBoost": 0.01,
+        "iconname": "fa-fish"
+    },
+    {
+        "lat": "36.576060",
+        "lon": "-118.251608",
+        "tag": "The Whitney Zone",
+        "elev": "10,100 feet",
+        "info": "Past this point all hikers require a Mount Whitney permit (Day or Overnight).  These are distributed with a yearly lottery, and these summer dates are highly competitive - plan in advance.",
+        "type": "junction",
+        "hoverBoost": 0.01,
+        "iconname": "fa-road-barrier"
+    },
+
 ];
 
 // Generated from OSM Trail: https://www.openstreetmap.org/relation/3289187

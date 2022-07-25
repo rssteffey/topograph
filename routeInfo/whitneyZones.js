@@ -1,4 +1,17 @@
+// Priority increases going down, so start with most generic boundaries
 const whitneyZones = [
+    {
+        name: "The Whitney Zone",
+        info: "The immediate area around Mt Whitney, restricted to permit holders",
+        polygonPoints: [
+            [36.587225, -118.268935],
+            [36.565151, -118.235021],
+            [36.553672, -118.247070],
+            [36.551239, -118.312680],
+            [36.597189, -118.314257],
+            [36.597611, -118.275901]
+        ]
+    },
     {
         name: "The 99 Switchbacks",
         info: "Infamously named, this is the main elevation push for the morning until we reach Trail Crest",
