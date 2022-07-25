@@ -88,7 +88,7 @@ i.rotated{
     float: right;
 }
 
-#info-panel{
+.panel{
     bottom: 0;
     right: 0;
     min-width: 40%;
@@ -103,7 +103,7 @@ i.rotated{
     -webkit-user-select: none;
 }
 
-.info-header{
+.panel-header{
     margin: 0;
     background-color: #4380c1;
     color: #ffffff;
@@ -112,29 +112,50 @@ i.rotated{
     justify-content: space-between;
 }
 
-.info-header i {
+.panel-header.TRACK{
+    background-color: #688630;
+}
+
+.panel-header.CHECK-IN{
+    background-color: #c37b10;
+}
+
+.panel-header.MESSAGE{
+    background-color: #6e3086;
+}
+
+.panel-header i {
     font-size: 3em;
     float: right;
     margin: 0.5em;
     text-shadow: none;
 }
 
-#info-panel h2{
+.panel-header  h2{
     margin: 0;
     padding: 20px 20px 0 20px;
     font-family: 'Montserrat', sans-serif;
 }
 
-#info-panel h3{
+.panel-header  h3{
     margin: 0;
     padding: 0.5em 1em 0.5em 20px;
 }
 
-#info-panel p{
+.panel-header  p{
     padding: 1em;
     margin: 0;
     font-family: 'Ibarra Real Nova', serif;
     font-size: 1.1em;
+}
+
+.panel-body {
+    margin: 1em;
+}
+
+.disclaimer{
+    font-size: 0.8em;
+    font-style: italic;
 }
 
 .hidden{

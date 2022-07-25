@@ -56,6 +56,8 @@ const landmarkAndOutlineParent = new THREE.Mesh();
 const landmarkParent = new THREE.Mesh();
 const outlineParent = new THREE.Mesh();
 const trackersParent = new THREE.Mesh();
+const trackersOutlineParent = new THREE.Mesh();
+var mostRecentTracker;
 const routeParent = new THREE.Mesh();
 const zoneParent = new THREE.Mesh();
 var compass;
@@ -90,7 +92,7 @@ const mouseDelta = 6;
 let startX;
 let startY;
 
-var infoPanel;
+var infoPanel, trackerPanel;
 
 init();
 
@@ -164,6 +166,7 @@ function init(){
     document.querySelector('#layers-toggle').addEventListener('click', collapse);
 
     infoPanel = document.getElementById("info-panel");
+    trackerPanel = document.getElementById("tracker-panel");
 
     animate();
 }
@@ -282,76 +285,31 @@ function createLandmarkPoint(landmark, index){
     var location = findVertexLocationFromLatLon(landmark.lat, landmark.lon);
     const properties = getLandmarkProperties(landmark);
     const geometry = new THREE.CylinderGeometry( properties.size, properties.size, properties.size / 4, 16 );
-    geometry.name = "LM-" + index + "-" + landmark.type + "-" + landmark.tag;
-    const marker = new THREE.Mesh( geometry, properties.material );
+    //geometry.name = "LM~" + index + "~" + landmark.type + "~" + landmark.tag;
+    var materials = [  properties.sideMaterial, properties.material, properties.sideMaterial ];
+    const marker = new THREE.Mesh( geometry, materials );
     const y_boost = landmark.hoverBoost ? landmark.hoverBoost : 0;
     marker.position.x = location.x;
     marker.position.y = location.y + LANDMARK_HOVER + y_boost;
     marker.position.z = location.z;
     recenterMap(marker);
-    marker.name = "LM-" + index + "-" + landmark.type + "-" + landmark.tag;
+    marker.name = "LM~" + index + "~" + landmark.type + "~" + landmark.tag;
     landmarkParent.add( marker );
     landmarks.push(marker);
 
     // Add outline mesh to render when hovered
     const OUTLINE_WIDTH = 0.01;
     const outline = new THREE.CylinderGeometry( properties.size + OUTLINE_WIDTH, properties.size + OUTLINE_WIDTH, (properties.size + OUTLINE_WIDTH) / 4, 16 );
-    outline.name = "O-LM-" + index + "-" + landmark.type + "-" + landmark.tag;
+    //outline.name = "O~LM~" + index + "~" + landmark.type + "~" + landmark.tag;
     const markerOutline = new THREE.Mesh( outline, outlineMaterial );
     markerOutline.position.x = location.x;
     markerOutline.position.y = location.y + LANDMARK_HOVER + y_boost;
     markerOutline.position.z = location.z;
     recenterMap(markerOutline);
-    markerOutline.name = "O-LM-" + index + "-" + landmark.type + "-" + landmark.tag;
+    markerOutline.name = "O~LM~" + index + "~" + landmark.type + "~" + landmark.tag;
     markerOutline.visible = false;
     outlineParent.add(markerOutline);
     
-}
-
-function getLandmarkProperties(landmark){
-    const textureLoader = new THREE.TextureLoader();
-    var texturePath;
-
-    var iconSize = 0.06;
-    var heightBoost = 0;
-
-    switch(landmark.type){
-        case "trailhead":
-            texturePath = "assets/markers/hike.png";
-            break;
-        case "peak":
-            texturePath = "assets/markers/mountain.png";
-            break;
-        case "junction":
-            texturePath = "assets/markers/signs.png";
-            break;
-        case "switchbacks":
-            texturePath = "assets/markers/switchback.png";
-            break;
-        case "camp":
-            texturePath = "assets/markers/tent.png";
-            break;
-        case "treeline":
-            texturePath = "assets/markers/trees.png";
-            iconSize = 0.03;
-            break;
-        case "river ford":
-            texturePath = "assets/markers/water.png";
-            iconSize = 0.03;
-            break;
-        case "lake":
-            texturePath = "assets/markers/water.png";
-            break;
-        default:
-            texturePath = "/assets/markers/hike.png";
-    }
-
-    const texture = textureLoader.load(texturePath);
-    const markerMaterial = new THREE.MeshBasicMaterial({ map: texture });
-    return {
-        material: markerMaterial,
-        size: iconSize
-    };
 }
 
 function createCompassRose(){
@@ -376,48 +334,72 @@ function createTrackingPath(feed){
     for(var j = 0; j < trackingPoints.length; j++){
         scene.remove(trackingPoints[j]);
     }
+    for (var i = trackersOutlineParent.children.length - 1; i >= 0; i--) {
+        scene.remove(trackersOutlineParent.children[i]);
+    }
+    trackingPoints = [];
 
     // Latest point gets special dot
     if(feed.length > 0){
-        createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, MOST_RECENT_BOOST);
+        createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, feed[0].altitude, true);
         // Update zone tracker
         var altitude = feed[0].altitude ? feed[0].altitude : 0;
         // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
         var tempLoc = offsetCoordinatesFromSpringHill(feed[0].lat, feed[0].lon);
-        updateZone(tempLoc.lat, tempLoc.lon, metersToFeet(altitude));
+        updateZone(tempLoc.lat, tempLoc.lon, Math.round(metersToFeet(altitude)));
     }
     // Older points fade to non-existence
     if(feed.length >= 2){
         for(var i = 1; i < feed.length; i++){
-            createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length));
+            createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude);
         }
     }
 
     scene.add(trackersParent);
+    scene.add(trackersOutlineParent);
 }
 
-function createTrackingPoint(lat, lon, type, timestamp, material, isMostRecent = false){
+function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMostRecent = false){
     const geometry = new THREE.CylinderGeometry( .04, .04, 0.01, 4 );
-    geometry.name = "Tracker-" + timestamp;
+    geometry.name = "Tracker~" + timestamp;
     const point = new THREE.Mesh( geometry, material );
     // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
     var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
-    var loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon);
+    var loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon, true);
     var boost = isMostRecent ? MOST_RECENT_BOOST : 0;
     point.position.x = loc.x;
     point.position.y = loc.y + TRACK_HOVER + boost;
     point.position.z = loc.z;
     recenterMap(point);
 
+    var elevation = altitude ? altitude : loc.elev;
+    var estimated = altitude == 0 ? "true" : "false";
+
+    point.name="T~" + type + "~" + timestamp + "~" + lat + "~" + lon + "~" + elevation + "~" + estimated;
+
     if(isMostRecent){
-        point.name = "MostRecentTracker";
         scene.add(point);
+        mostRecentTracker = point;
     } else {
-        point.name="Tracking-" + timestamp;
         trackersParent.add( point );
     }
 
     trackingPoints.push(point)
+
+    // Add outline mesh to render when hovered
+    const OUTLINE_WIDTH = 0.01;
+    const outline = new THREE.CylinderGeometry( .04 + OUTLINE_WIDTH, .04 + OUTLINE_WIDTH, (.04 + OUTLINE_WIDTH) / 4, 4 );
+    const pointOutline = new THREE.Mesh( outline, outlineMaterial );
+
+    pointOutline.position.x = loc.x;
+    pointOutline.position.y = loc.y + TRACK_HOVER + boost;
+    pointOutline.position.z = loc.z;
+    recenterMap(pointOutline);
+
+    pointOutline.name="O~T~" + type + "~" + timestamp + "~" + lat + "~" + lon + "~" + elevation + "~" + estimated;
+
+    pointOutline.visible = false;
+    trackersOutlineParent.add(pointOutline);
 }
 
 // Convert coordinates of local starting point (35.755874, -86.869595)
@@ -454,7 +436,7 @@ function updateZone(lat, lon, altitude){
         var zoneGeometry = new THREE.BufferGeometry();
         zoneGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
         var zone = new THREE.Line(zoneGeometry, zoneMaterial);
-        zone.name = "Zone-" + zoneData[i].name;
+        zone.name = "Zone~" + zoneData[i].name;
         
         zoneParent.add(zone);
 
@@ -491,7 +473,7 @@ function moveCreatedMeshToPosition(mesh){
     mesh.translateY(2);
 }
 
-function findVertexLocationFromLatLon(latitude, longitude){
+function findVertexLocationFromLatLon(latitude, longitude, returnElev = false){
     const safetyMargin = 0.000001;
     // If lat or lon is beyond map bounds, cap it (slightly within)
     if(latitude >= maxSafeLat){
@@ -518,6 +500,10 @@ function findVertexLocationFromLatLon(latitude, longitude){
     var weightedElevation = (westSum * (1-neighbors[0].x_dist)) + (eastSum * (1-neighbors[1].x_dist));
     
     var y = (weightedElevation * ELEVATION_MODIFIER) + ROUTE_HOVER + ELEVATION_BOOST;
+
+    if(returnElev){
+        return { x : x, y : y, z : z, elev : Math.round(weightedElevation)};
+    }
 
     return { x : x, y : y, z : z};
 }
@@ -867,6 +853,53 @@ function getTrackingPointMaterial(index, length){
     return mat;
 }
 
+function getLandmarkProperties(landmark){
+    const textureLoader = new THREE.TextureLoader();
+    var texturePath;
+
+    var iconSize = 0.06;
+
+    switch(landmark.type){
+        case "trailhead":
+            texturePath = "assets/markers/hike.png";
+            break;
+        case "peak":
+            texturePath = "assets/markers/mountain.png";
+            break;
+        case "junction":
+            texturePath = "assets/markers/signs.png";
+            break;
+        case "switchbacks":
+            texturePath = "assets/markers/switchback.png";
+            break;
+        case "camp":
+            texturePath = "assets/markers/tent.png";
+            break;
+        case "treeline":
+            texturePath = "assets/markers/trees.png";
+            iconSize = 0.03;
+            break;
+        case "river ford":
+            texturePath = "assets/markers/water.png";
+            iconSize = 0.03;
+            break;
+        case "lake":
+            texturePath = "assets/markers/water.png";
+            break;
+        default:
+            texturePath = "/assets/markers/hike.png";
+    }
+
+    const texture = textureLoader.load(texturePath);
+    const markerMaterial = new THREE.MeshBasicMaterial({ map: texture });
+    const sideMaterial = new THREE.MeshBasicMaterial({ color: 0x5b74f5 });
+    return {
+        material: markerMaterial,
+        sideMaterial: sideMaterial,
+        size: iconSize
+    };
+}
+
 function onDocumentMouseMove( event ){
 	mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
 	mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
@@ -877,8 +910,7 @@ function onDocumentMouseClick( event ){
     // Use INTERSECT to grab information and update the panel if landmark
     if(INTERSECTED && INTERSECTED.name.startsWith("LM")){
         //console.log(INTERSECTED);
-        var index = INTERSECTED.name.split("-")[1];
-
+        var index = INTERSECTED.name.split("~")[1];
         showInfoPanel({
             title: landmarkData[index].tag,
             elevation: landmarkData[index].elev,
@@ -887,17 +919,64 @@ function onDocumentMouseClick( event ){
         });
     }
 
+    if(INTERSECTED && INTERSECTED.name.startsWith("T")){
+        // "T-" + type + "-" + timestamp + "-" + lat + "-" + lon + "-" + loc.elev;
+        var fields = INTERSECTED.name.split("~");
+        var dateString = formatDate(parseInt(fields[2]));
+
+        showTrackerPanel({
+            time: dateString,
+            type: fields[1],
+            elevation: "Elev: " + Math.round(metersToFeet(fields[5])) + " ft",
+            elevEstimated: fields[6],
+            location: "Lat/Lon: " + fields[3] + ", " + fields[4],
+            icon: messageTypeIcon(fields[1])
+        });
+    }
+
     // No valid objects clicked on
     if(!INTERSECTED){
         hideInfoPanel();
+        hideTrackerPanel();
     }
+}
+
+// Output in California time
+function formatDate(timestamp){
+    var date = new Date(timestamp * 1000);
+
+    var timeString = date.toLocaleTimeString(
+        'en-US',
+        {
+          timeZone: 'pst',
+          hour: 'numeric',
+          minute: 'numeric',
+          hour12: true
+        }
+    );
+
+    var dateString = date.toLocaleDateString(
+        'en-US',
+        {
+          timeZone: 'pst',
+          month: 'long',
+          day: 'numeric'
+        }
+    );
+
+    return  timeString + " (PST), " + dateString;
 }
 
 function hideInfoPanel(){
     infoPanel.classList.add("hidden");
 }
 
+function hideTrackerPanel(){
+    trackerPanel.classList.add("hidden");
+}
+
 function showInfoPanel(data){
+    hideTrackerPanel();
     document.getElementById("info-title").textContent = data.title;
     document.getElementById("info-summary").textContent = data.information;
     document.getElementById("info-elevation").textContent = data.elevation;
@@ -910,35 +989,85 @@ function showInfoPanel(data){
     icon.className += ' ' + data.icon;
 }
 
+function showTrackerPanel(data){
+    hideInfoPanel();
+
+    var disclaimer = data.elevEstimated == "true" ?  "(elevation estimated from surrounding topography)" : null;
+
+    document.getElementById("tracker-time").textContent = data.time;
+    document.getElementById("tracker-location").textContent = data.location;
+    document.getElementById("tracker-elevation").textContent = data.elevation;
+    document.getElementById("tracker-type").textContent = humanReadableMessageType(data.type);
+    document.getElementById("tracker-disclaimer").textContent = disclaimer;
+    trackerPanel.classList.remove("hidden");
+
+    //swap icon
+    var icon = document.getElementById("tracker-icon");
+    icon.removeAttribute('class');
+    icon.classList.add('fa-solid');
+    icon.className += ' ' + data.icon;
+
+    // toggle type-specific color
+    var header = document.getElementById("tracker-header");
+    header.removeAttribute('class');
+    header.classList.add('panel-header');
+    header.classList.add(data.type);
+}
+
 function checkIntersect()
 {
-	// create an array containing all objects in the scene with which the ray intersects
-	var intersects = raycaster.intersectObjects( landmarkParent.children, true );
+	// create an array containing all objects in the scene with which the ray intersects (Visible only)
+    var arrayToCheck = []
+    arrayToCheck = arrayToCheck.concat(landmarkAndOutlineParent.visible ? landmarkParent.children : []);
+    arrayToCheck = arrayToCheck.concat(trackersParent.visible ? trackersParent.children : []);
+    arrayToCheck.push(mostRecentTracker);
 
-    // intersects = intersects.filter(function(item) {
-    //     return item.object.geometry.name !== "topo" && item.object.geometry.name !== "sides"
-    // })
+	var landmarkIntersects = [];
+    try{
+        landmarkIntersects = raycaster.intersectObjects( arrayToCheck, true );
+    }catch(e){
+        //probably fine
+    }
 
 	// if there is one (or more) intersections
-	if ( intersects.length > 0 )
+	if ( landmarkIntersects.length > 0 )
 	{
 		// if the closest object intersected is not the currently stored intersection object
-		if ( intersects[0].object != INTERSECTED ) 
+		if ( landmarkIntersects[0].object != INTERSECTED ) 
 		{
-			INTERSECTED = intersects[0].object;
+            try{
+                var outline = outlineParent.getObjectByName("O~" + INTERSECTED.name);
+                outline.visible = false;
+            } catch(e){};
+            try{
+                outline = trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name);
+                outline.visible = false;
+            } catch(e){};
 
-            if(INTERSECTED.geometry.name.startsWith("LM-")){
-                var outline = outlineParent.getObjectByName("O-" + INTERSECTED.geometry.name);
+			INTERSECTED = landmarkIntersects[0].object;
+
+            if(INTERSECTED.name.startsWith("LM~")){
+                var outline = outlineParent.getObjectByName("O~" + INTERSECTED.name);
+                outline.visible = true;
+            } else if(INTERSECTED.name.startsWith("T~")){
+                var outline = trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name);
                 outline.visible = true;
             }
 		}
 	} 
 	else // there are no intersections
 	{
-        if(INTERSECTED){
-            var outline = outlineParent.getObjectByName("O-" + INTERSECTED.geometry.name);
-            outline.visible = false;
+        if(INTERSECTED ){
+            try{
+                var outline = outlineParent.getObjectByName("O~" + INTERSECTED.name);
+                outline.visible = false;
+            } catch(e){};
+            try{
+                outline = trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name);
+                outline.visible = false;
+            } catch(e){};
         }
+        
 		INTERSECTED = null;
 	}
 }
@@ -996,7 +1125,8 @@ function normalizeSpotFeed(data){
             type: mapMessageType(respMessages[i].messageType),
             lat: respMessages[i].latitude,
             lon: respMessages[i].longitude,
-            timestamp: respMessages[i].unixTime
+            timestamp: respMessages[i].unixTime,
+            altitude: respMessages[i].altitude
         };
         feed.push(trackingPoint);
     }
@@ -1017,6 +1147,37 @@ function mapMessageType(type){
         case "MESSAGE":
             return "MESSAGE";
         default:
-            return "TRACK";
+            return "CHECK-IN";
+    }
+}
+
+function humanReadableMessageType(type){
+    switch(type){
+        case "OK":
+        case "CHECK-IN":
+            return "Check-in";
+        case "TRACK":
+            return "Tracking Point";
+        case "MESSAGE":
+            return "Message";
+        default:
+            return "Tracking Point";
+    }
+}
+
+// Map icon
+function messageTypeIcon(type){
+    switch(type){
+        case "OK":
+        case "CHECK-IN":
+            return "fa-walkie-talkie";
+        case "TRACK":
+            return "fa-location-dot";
+        case "MESSAGE":
+            return "fa-mail";
+        case "LATEST":
+            return "fa-location-arrow";
+        default:
+            return "fa-check";
     }
 }
