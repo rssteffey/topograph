@@ -435,7 +435,7 @@ function updateZone(lat, lon, altitude){
         var vertices_array = [];
         for(var j = 0; j < zoneData[i].polygonPoints.length; j++){
             var location = findVertexLocationFromLatLon(zoneData[i].polygonPoints[j][0], zoneData[i].polygonPoints[j][1]);
-            vertices_array.push(location.x, location.y, location.z);
+            vertices_array.push(location.x, location.y + 0.1, location.z);
         }
     
         var zoneGeometry = new THREE.BufferGeometry();
@@ -447,7 +447,6 @@ function updateZone(lat, lon, altitude){
         zoneParent.add(zone);
 
         if( insidePoly([lat, lon], zoneData[i].polygonPoints)){
-            console.log("Within zone " + zoneData[i].name );
             zoneName = zoneData[i].name;
             zoneDetails = zoneData[i].info;
             zoneElevation = (zoneData[i].elevation && zoneElevation <= 0) ? zoneData[i].elevation : zoneElevation;
