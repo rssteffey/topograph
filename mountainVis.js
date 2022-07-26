@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls.js';
 
 let DEBUG = false;
+let SHOW_ZONES = false;
 
 // Swap these out with variable names from your elevationData/ and routeInfo/ js files
 const pointsData = whitneyElevationData;
@@ -462,7 +463,7 @@ function updateZone(lat, lon, altitude){
     zoneParent.position.z = 0;
     
     recenterMap(zoneParent);
-    if(!DEBUG){
+    if(!DEBUG || !SHOW_ZONES){
         zoneParent.visible = false;
     } else {
         zoneParent.visible = true;
@@ -1200,6 +1201,11 @@ function onDocumentKeyDown(event) {
     if (keyCode == 192) {
         DEBUG = true;
         console.log("debug mode enabled");
+    }
+    if (keyCode == 90 && DEBUG) {
+        SHOW_ZONES = !SHOW_ZONES;
+        updateZone(0, 0, 0);
+        console.log("toggle zone display");
     }
 };
 
