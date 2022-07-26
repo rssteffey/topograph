@@ -435,7 +435,8 @@ function updateZone(lat, lon, altitude){
     
         var zoneGeometry = new THREE.BufferGeometry();
         zoneGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
-        var zone = new THREE.Line(zoneGeometry, zoneMaterial);
+        var zoneColor = getZoneMaterial(zoneData[i].color);
+        var zone = new THREE.Line(zoneGeometry, zoneColor);
         zone.name = "Zone~" + zoneData[i].name;
         
         zoneParent.add(zone);
@@ -454,7 +455,7 @@ function updateZone(lat, lon, altitude){
     
     
     recenterMap(zoneParent);
-    zoneParent.visible = false;
+    //zoneParent.visible = false;
     scene.add(zoneParent);
 }
 
@@ -851,6 +852,20 @@ function getTrackingPointMaterial(index, length){
         opacity: opacity
     });
     return mat;
+}
+
+function getZoneMaterial(color){
+    if (color == null) {
+        return zoneMaterial;
+    }
+
+    var newMaterial = new THREE.LineBasicMaterial({
+        linewidth: 2, 
+        color: color,
+        linejoin:  'round',
+        linecap: 'round',
+    });
+    return newMaterial;
 }
 
 function getLandmarkProperties(landmark){
