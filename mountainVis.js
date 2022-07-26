@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'https://unpkg.com/three/examples/jsm/controls/OrbitControls.js';
 
+let DEBUG = false;
+
 // Swap these out with variable names from your elevationData/ and routeInfo/ js files
 const pointsData = whitneyElevationData;
 const routeData = whitneyTrailData;
@@ -60,6 +62,7 @@ const trackersOutlineParent = new THREE.Mesh();
 var mostRecentTracker;
 const routeParent = new THREE.Mesh();
 const zoneParent = new THREE.Mesh();
+const mapParent = new THREE.Mesh();
 var compass;
 
 const vertexMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
@@ -85,6 +88,7 @@ const trackingHighlightMaterial = new THREE.MeshBasicMaterial({color: 0xdddd44})
 
 // Hover checks
 var raycaster, INTERSECTED;
+var DEBUG_INTERSECTED, debug_cube;
 var mouse = new THREE.Vector2();
 
 // Click Checks
@@ -228,7 +232,8 @@ function createMountain(){
 
     var topoMesh = new THREE.Mesh( mountainGeometry, mountMaterial );
     recenterMap(topoMesh);
-    scene.add( topoMesh );
+    mapParent.add(topoMesh);
+    scene.add( mapParent );
 
     // Repeat for sidewalls mesh
     var side_vertices_array = [];
@@ -453,9 +458,16 @@ function updateZone(lat, lon, altitude){
     document.getElementById("zone-name").textContent = zoneName;
     //document.getElementById("zone-info").textContent = zoneDetails;
     
+    zoneParent.position.x = 0;
+    zoneParent.position.y = 0;
+    zoneParent.position.z = 0;
     
     recenterMap(zoneParent);
-    //zoneParent.visible = false;
+    if(!DEBUG){
+        zoneParent.visible = false;
+    } else {
+        zoneParent.visible = true;
+    }
     scene.add(zoneParent);
 }
 
@@ -466,13 +478,6 @@ function recenterMap(mesh){
     mesh.translateX(xSize / -2.0);
     mesh.translateZ(zSize / -2.0);
 } 
-
-function moveCreatedMeshToPosition(mesh){
-    mesh.rotation.x = -1 * Math.PI / 2;
-    mesh.translateZ(-3);
-    mesh.translateX(-3);
-    mesh.translateY(2);
-}
 
 function findVertexLocationFromLatLon(latitude, longitude, returnElev = false){
     const safetyMargin = 0.000001;
@@ -915,46 +920,7 @@ function getLandmarkProperties(landmark){
     };
 }
 
-function onDocumentMouseMove( event ){
-	mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
-	mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
-    checkIntersect();
-}
 
-function onDocumentMouseClick( event ){
-    // Use INTERSECT to grab information and update the panel if landmark
-    if(INTERSECTED && INTERSECTED.name.startsWith("LM")){
-        //console.log(INTERSECTED);
-        var index = INTERSECTED.name.split("~")[1];
-        showInfoPanel({
-            title: landmarkData[index].tag,
-            elevation: landmarkData[index].elev,
-            information: landmarkData[index].info,
-            icon: landmarkData[index].iconname
-        });
-    }
-
-    if(INTERSECTED && INTERSECTED.name.startsWith("T")){
-        // "T-" + type + "-" + timestamp + "-" + lat + "-" + lon + "-" + loc.elev;
-        var fields = INTERSECTED.name.split("~");
-        var dateString = formatDate(parseInt(fields[2]));
-
-        showTrackerPanel({
-            time: dateString,
-            type: fields[1],
-            elevation: "Elev: " + Math.round(metersToFeet(fields[5])) + " ft",
-            elevEstimated: fields[6],
-            location: "Lat/Lon: " + fields[3] + ", " + fields[4],
-            icon: messageTypeIcon(fields[1])
-        });
-    }
-
-    // No valid objects clicked on
-    if(!INTERSECTED){
-        hideInfoPanel();
-        hideTrackerPanel();
-    }
-}
 
 // Output in California time
 function formatDate(timestamp){
@@ -1087,6 +1053,19 @@ function checkIntersect()
 	}
 }
 
+// Testing purposes only
+function checkDebugIntersect(){
+    var intersectList = raycaster.intersectObjects( mapParent.children, true );
+    if ( intersectList.length > 0 )
+	{
+        DEBUG_INTERSECTED = intersectList[0];
+	} 
+	else
+	{
+        DEBUG_INTERSECTED = null;
+    }
+}
+
 // Check if coordinates are within a defined polygon
 function insidePoly(point, vs) {
     // ray-casting algorithm based on
@@ -1148,6 +1127,82 @@ function normalizeSpotFeed(data){
 
     return feed;
 }
+
+function onDocumentMouseMove( event ){
+	mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+	mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+    checkIntersect();
+    checkDebugIntersect();
+}
+
+function onDocumentMouseClick( event ){
+    // Use INTERSECT to grab information and update the panel if landmark
+    if(INTERSECTED && INTERSECTED.name.startsWith("LM")){
+        //console.log(INTERSECTED);
+        var index = INTERSECTED.name.split("~")[1];
+        showInfoPanel({
+            title: landmarkData[index].tag,
+            elevation: landmarkData[index].elev,
+            information: landmarkData[index].info,
+            icon: landmarkData[index].iconname
+        });
+    }
+
+    if(INTERSECTED && INTERSECTED.name.startsWith("T")){
+        // "T-" + type + "-" + timestamp + "-" + lat + "-" + lon + "-" + loc.elev;
+        var fields = INTERSECTED.name.split("~");
+        var dateString = formatDate(parseInt(fields[2]));
+
+        showTrackerPanel({
+            time: dateString,
+            type: fields[1],
+            elevation: "Elev: " + Math.round(metersToFeet(fields[5])) + " ft",
+            elevEstimated: fields[6],
+            location: "Lat/Lon: " + fields[3] + ", " + fields[4],
+            icon: messageTypeIcon(fields[1])
+        });
+    }
+
+    // No valid objects clicked on
+    if(!INTERSECTED){
+        hideInfoPanel();
+        hideTrackerPanel();
+    }
+
+    // Debug only - can remove before release (or leave for fun)
+    if(DEBUG && DEBUG_INTERSECTED){
+        var point = DEBUG_INTERSECTED.point;
+        // Hacky hacky hacky, but it'll do
+        // Find x/y distance from corner points (where min/max lat/long are known)
+        // Use that distance to figure out our _approximate_ GPS coordinates
+        // not exact, but good enough for debugging
+        const x_width = GRID_X_OFFSET * (pointsData.points[0].length - 1 );
+        const z_width = GRID_Z_OFFSET * (pointsData.points.length - 1 );
+
+        const zMin = 1 * (z_width / 2.0);
+        const xMin = -1 * (x_width / 2.0);
+
+        const x_ratio = (point.x - xMin) / x_width;
+        const z_ratio = -1 * (point.z - zMin) / z_width;
+
+        // Edge + ratio of the total range = position
+        const lon = minSafeLon + (x_ratio * (maxSafeLon - minSafeLon));
+        const lat = minSafeLat + (z_ratio * (maxSafeLat - minSafeLat));
+
+        console.log("Testing Lat: " + lat + ", Lon: " + lon);
+        updateZone(lat, lon, 0);
+    }
+}
+
+// DEBUG
+document.addEventListener("keydown", onDocumentKeyDown, false);
+function onDocumentKeyDown(event) {
+    var keyCode = event.which;
+    if (keyCode == 192) {
+        DEBUG = true;
+        console.log("debug mode enabled");
+    }
+};
 
 // Map to our standardized event types
 //   CHECK-IN
