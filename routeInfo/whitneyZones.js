@@ -28,6 +28,19 @@ const whitneyZones = [
         ]
     },
     {
+        name: "The Ridgeline",
+        info: "Most of the altitude is done, but the last 2 miles are above 14000ft",
+        elevation: 14000,
+        color: 0xaa11dd,
+        polygonPoints: [
+            [ 36.5790097, -118.2982205 ],
+            [ 36.579397, -118.2891704 ],
+            [ 36.5561974, -118.2886048 ],
+            [ 36.556025, -118.2948293 ],
+            [ 36.5790097, -118.2982205 ]
+        ]
+    },
+    {
         name: "The 99 Switchbacks",
         info: "Infamously named, this is the main elevation push for the morning until we reach Trail Crest",
         color: 0x880000,
@@ -102,5 +115,45 @@ const whitneyZones = [
                 [ 36.5709676, -118.2614618 ],
                 [ 36.5718538, -118.2624372 ]
           ]
+    },
+    {
+        name: "The Needles",
+        info: "Nearing the summit now",
+        elevation: 14300,
+        color: 0xffaaaa,
+        polygonPoints: [
+            [ 36.5717943, -118.2942532 ],
+            [ 36.5720913, -118.2887009 ],
+            [ 36.5769131, -118.2903437 ],
+            [ 36.5771196, -118.2933502 ],
+            [ 36.5758103, -118.2950228 ],
+            [ 36.5717943, -118.2942532 ]
+        ]
+    },
+    {
+        name: "Summit",
+        info: "Evidently we made it",
+        elevation: 14505,
+        color: 0xffffff,
+        polygonPoints: [
+            [ 36.5797819, -118.2936417 ],
+            [ 36.5800148, -118.2906442 ],
+            [ 36.5769131, -118.2903437 ],
+            [ 36.5771196, -118.2933502 ],
+            [ 36.5797819, -118.2936417 ]
+        ]
+    },
+    {
+        name: "Trail Crest",
+        info: "The switchbacks are over!",
+        elevation: 13700,
+        color: 0x228888,
+        polygonPoints: [
+            [ 36.5626706, -118.2946595 ],
+            [ 36.5614469, -118.2900018 ],
+            [ 36.5576206, -118.2884564 ],
+            [ 36.5572586, -118.2929638 ],
+            [ 36.5626706, -118.2946595 ]
+        ]
     }
 ]
