@@ -853,7 +853,7 @@ function getLandmarkProperties(landmark){
 
     const iconSize = landmark.iconSize ? landmark.iconSize : 0.06;
     const textureIcon = landmark.textureName ? landmark.textureName : "hike"; 
-    const texturePath = "/assets/markers/" + textureIcon + ".png";
+    const texturePath = "assets/markers/" + textureIcon + ".png";
 
     const texture = textureLoader.load(texturePath);
     const markerMaterial = new THREE.MeshBasicMaterial({ map: texture });
