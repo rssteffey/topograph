@@ -88,8 +88,8 @@ Replace the imports near the top of `mountainVis.js` with your new data sources
 
     const pointsData = <name of your json elevation object>;
     const routeData = <name of your json routes object>;
-    const landmarkData = whitneyTrailLandmarks;
-    const zoneData = whitneyZones;
+    const landmarkData = <name of your json landmarks object>;
+    const zoneData = <name of your json zones object>;
 
 > Note: zoneData is a custom list of polygons, manually made.  Reference the whitneyZones.js file to see the format
 
@@ -113,4 +113,8 @@ Take both these images into your photo editor of choice, overlay them exactly, t
 
 ## - I'm having trouble making zones on my map
 
-The Zones concept was a last-minute addition for me, so it's the ugliest feature.  When you're on the app, try pressing `` ` `` to enter debug mode, then `z` to view the zones drawn on the map.  Clicking around in debug mode will simulate a tracking marker zone update at that point (Although it will also simulate all tracking points as if they're offset from Spring Hill, TN to the Mt Whitney Trailhead, so you'll want to modify that bit)
+The Zones concept was a last-minute addition for me, so it's the ugliest feature. I made the Whitney zones manually with [this online polygon tool](https://www.keene.edu/campus/maps/tool/).
+
+ When you're on the app, try pressing `` ` `` to enter debug mode, then `z` to view your zones on the map.  Clicking around in debug mode will simulate a tracking marker zone update at that point (Although it will also simulate all tracking points as if they're offset from Spring Hill, TN to the Mt Whitney Trailhead, so you'll want to modify that bit)
+
+ Zones later in the list have priority; so when you define your array, start with the largest zones and nest inward.
