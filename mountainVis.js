@@ -5,26 +5,24 @@ let DEBUG = false;
 let SHOW_ZONES = false;
 
 // Swap these out with variable names from your elevationData/ and routeInfo/ js files
-const pointsData = whitneyElevationData;
-const routeData = whitneyTrailData;
+const pointsData   = whitneyElevationData;
+const routeData    = whitneyTrailData;
 const landmarkData = whitneyTrailLandmarks;
-const zoneData = whitneyZones;
+const zoneData     = whitneyZones;
 
-const GRID_X_OFFSET = 0.1;
+const GRID_X_OFFSET = 0.1;         // Scene units between grid points
 const GRID_Z_OFFSET = 0.1;
-const ELEVATION_MODIFIER = 0.0009;
-const ELEVATION_BOOST = -4;
-const ELEVATION_BASE = -2;
-const ROUTE_HOVER = 0.01;
-const LANDMARK_HOVER = .01;
-const TRACK_HOVER = 0.03;
-const MOST_RECENT_BOOST = 0.01;
+const ELEVATION_MODIFIER = 0.0009; // Amount to multiply elevation values to get scene units
+const ELEVATION_BOOST = -4;        // Shift entire map up/down
+const ELEVATION_BASE = -2;         // Height of the map walls
+const ROUTE_HOVER = 0.01;          // Amount to lift the trail off the map (needs to be >0)
+const LANDMARK_HOVER = .01;        // Amount to lift landmark markers off the map
+const TRACK_HOVER = 0.03;          // Amount to lift tracking markers off the map
+const MOST_RECENT_BOOST = 0.01;    // Extra amount to lift most recent tracking marker above the others (ensure visibility/clickability)
 
-const SMOOTHING_FACTOR = 0.15;
+const SMOOTHING_FACTOR = 0.15;     // Amount (0-1) to smooth the generated elevation data
 
-// Color gradient transition points (elevation in meters) (useful for creating treelines, etc)
-const colorCutoff1 = 3200;
-const colorCutoff2 = 3800;
+
 
 // Make null to use a colorScheme instead
 const textureAssetPath = "assets/whitneyTextureLowRes.png"
@@ -35,12 +33,16 @@ const summerColors = [0x582a56, 0xb95263, 0xf89b59, 0xfafa6e];
 const miamiHeat = [0x2B3D41, 0x34b18f, 0x872BFF, 0xdc58d4];
 const timesNewRoman = [0x000000, 0x444444, 0xbbbbbb, 0xffffff];
 
+// Color gradient transition points (elevation in meters) (useful for creating treelines, etc)
+const colorCutoff1 = 3200;
+const colorCutoff2 = 3800;
+
 // Choose colorscheme here
 const wallColor = new THREE.Color(0x615c53);
 const colorScheme = readableColors;
 
-// --- End Constants ---
 
+// ----- Scene References -----
 var scene = new THREE.Scene();
 var viewport, renderer, camera, controls;
 
@@ -49,13 +51,14 @@ var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see ab
 var minSafeLat, minSafeLon, maxSafeLat, maxSafeLon;
 
 var smoothedElevationGrid;
-var landmarks = []; // Store to rotate towards camera
+var landmarks = [];
 
 // Object references for toggleability visibility
 const landmarkAndOutlineParent = new THREE.Mesh();
 const landmarkParent = new THREE.Mesh();
 const outlineParent = new THREE.Mesh();
 const trackersParent = new THREE.Mesh();
+      trackersParent.name = "trackerParent";
 const trackersOutlineParent = new THREE.Mesh();
 var mostRecentTracker;
 const routeParent = new THREE.Mesh();
@@ -63,6 +66,7 @@ const zoneParent = new THREE.Mesh();
 const mapParent = new THREE.Mesh();
 var compass;
 
+// Global Materials
 const vertexMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const sideMaterial = new THREE.MeshBasicMaterial( { vertexColors: true } );
 const lineMaterial = new THREE.LineBasicMaterial({
@@ -85,8 +89,7 @@ const outlineMaterial = new THREE.MeshBasicMaterial( {
 const trackingHighlightMaterial = new THREE.MeshBasicMaterial({color: 0xdddd44});
 
 // Hover checks
-var raycaster, INTERSECTED;
-var DEBUG_INTERSECTED, debug_cube;
+var raycaster, INTERSECTED, DEBUG_INTERSECTED;
 var mouse = new THREE.Vector2();
 
 // Click Checks
@@ -96,10 +99,12 @@ let startY;
 
 var timeoutFunction;
 
+// UI
 var infoPanel, trackerPanel;
 
 init();
 
+// Set up the scene and set everything into motion
 function init(){
     scene = new THREE.Scene();
     var WIDTH = window.innerWidth,
@@ -110,9 +115,8 @@ function init(){
     renderer = new THREE.WebGLRenderer();
     renderer = new THREE.WebGLRenderer({ antialias: 0, clearAlpha: 0, alpha:true });
     renderer.setSize(WIDTH, HEIGHT);
-    renderer.setClearColor( 0x000000, 0 ); // the default
+    renderer.setClearColor( 0x000000, 0 );
     viewport.appendChild(renderer.domElement);
-    window.addEventListener( 'resize', onWindowResize, false );
 
     camera = new THREE.PerspectiveCamera(50, WIDTH / HEIGHT, 0.1, 1000);
     camera.position.y = 4;
@@ -124,7 +128,7 @@ function init(){
     // Restrict user from wiggling too much
     controls.maxPolarAngle = Math.PI / 2;
     controls.minPolarAngle = 0;
-    controls.minDistance = 1.0;
+    controls.minDistance = 0.6;
     controls.maxDistance = 7.0;
     controls.update();
     
@@ -137,77 +141,39 @@ function init(){
     // Update boundary box for point plotting
     findSafeBoundsForPoints();
 
+    // Create our meshes
     createMountain();
     createRoute();
     createLandmarks();
+    createCompassRose();
 
     // Grab feed, delete old points, create new points
     getRemoteFeedData();
 
-    // Add additional visuals
-    createCompassRose();
+    animate();
 
-	// when the mouse moves, call the given function
+    // Hover checker
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-    //document.addEventListener( 'click', , false );
-
+    // Check for click with no drag
     document.addEventListener('mousedown', function (event) {
         startX = event.pageX;
         startY = event.pageY;
     });
-
     document.addEventListener('mouseup', function (event) {
         const diffX = Math.abs(event.pageX - startX);
         const diffY = Math.abs(event.pageY - startY);
-
-        // Click! (Not drag)
         if (diffX < mouseDelta && diffY < mouseDelta) {
             onDocumentMouseClick(event);
         }
     });
+    // Resize canvas accordingly
+    window.addEventListener( 'resize', onWindowResize, false );
 
+    // UI
     document.querySelectorAll('.switch-check').forEach((togg) => {togg.addEventListener('click', checkToggle)});
     document.querySelector('#layers-toggle').addEventListener('click', collapse);
-
     infoPanel = document.getElementById("info-panel");
     trackerPanel = document.getElementById("tracker-panel");
-
-    animate();
-}
-
-function checkToggle(event){
-    var parentObject;
-    switch(event.target.value){
-        case "landmarks":
-            parentObject = landmarkAndOutlineParent;
-            break;
-        case "route":
-            parentObject = routeParent;
-            break;
-        case "tracking":
-            parentObject = trackersParent;
-            break;
-        case "compass":
-            parentObject = compass;
-            break;
-        default:
-            break;
-    }
-
-    parentObject.visible = event.target.checked;
-}
-
-function collapse(event){
-    //console.log(event);
-    event.target.classList.toggle("active");
-    document.querySelector('#layers-toggle i').classList.toggle("rotated");
-    document.querySelector('#legend').classList.toggle("open");
-    var content = document.querySelector('#toggles');
-    if (content.style.maxHeight){
-        content.style.maxHeight = null;
-    } else {
-        content.style.maxHeight = "200px";
-    }
 }
 
 function createMountain(){
@@ -280,7 +246,6 @@ function createLandmarks(){
             createLandmarkPoint(landmarkData[i], i);
         }
     }
-
     landmarkAndOutlineParent.add(landmarkParent);
     landmarkAndOutlineParent.add(outlineParent);
     scene.add(landmarkAndOutlineParent);
@@ -290,7 +255,7 @@ function createLandmarkPoint(landmark, index){
     var location = findVertexLocationFromLatLon(landmark.lat, landmark.lon);
     const properties = getLandmarkProperties(landmark);
     const geometry = new THREE.CylinderGeometry( properties.size, properties.size, properties.size / 4, 16 );
-    //geometry.name = "LM~" + index + "~" + landmark.type + "~" + landmark.tag;
+
     var materials = [  properties.sideMaterial, properties.material, properties.sideMaterial ];
     const marker = new THREE.Mesh( geometry, materials );
     const y_boost = landmark.hoverBoost ? landmark.hoverBoost : 0;
@@ -302,10 +267,10 @@ function createLandmarkPoint(landmark, index){
     landmarkParent.add( marker );
     landmarks.push(marker);
 
-    // Add outline mesh to render when hovered
+    // Add outline mesh to show when hovered
     const OUTLINE_WIDTH = 0.01;
     const outline = new THREE.CylinderGeometry( properties.size + OUTLINE_WIDTH, properties.size + OUTLINE_WIDTH, (properties.size + OUTLINE_WIDTH) / 4, 16 );
-    //outline.name = "O~LM~" + index + "~" + landmark.type + "~" + landmark.tag;
+
     const markerOutline = new THREE.Mesh( outline, outlineMaterial );
     markerOutline.position.x = location.x;
     markerOutline.position.y = location.y + LANDMARK_HOVER + y_boost;
@@ -320,7 +285,6 @@ function createLandmarkPoint(landmark, index){
 function createCompassRose(){
     var compassGeometry = new THREE.PlaneGeometry(13, 13);
     compass = new THREE.Mesh(compassGeometry, getCompassMaterial(0.4));
-    //recenterMap(compass);
     compass.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI / -2);
     compass.position.y = -2;
     compass.visible = false;
@@ -334,37 +298,24 @@ function rotateLandmarksToFollowCamera(){
 }
 
 function createTrackingPath(feed){
-    //delete old tracking objects
     trackersParent.remove(...trackersParent.children);
     trackersOutlineParent.remove(...trackersOutlineParent.children);
-    scene.remove(trackersParent);
-    scene.remove(trackersOutlineParent);
-    scene.remove(mostRecentTracker);
-
-    // Latest point gets special dot
-    if(feed.length > 0){
-        // Update zone tracker
-        var altitude = feed[0].altitude ? feed[0].altitude : 0;
-        // TEST FROM SPRING HILL (DEBUG ONLY)
-        if(DEBUG){
-            var tempLoc = offsetCoordinatesFromSpringHill(feed[0].lat, feed[0].lon);
-            createTrackingPoint(tempLoc.lat, tempLoc.lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, feed[0].altitude, true);
-            updateZone(tempLoc.lat, tempLoc.lon, Math.round(metersToFeet(altitude)));
-        } else {
-            createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, feed[0].altitude, true);
-            updateZone(feed[0].lat, feed[0].lon, Math.round(metersToFeet(altitude)));
-        }
+    if(mostRecentTracker){
+        scene.remove(mostRecentTracker);
+        mostRecentTracker = undefined; // Full disclosure, I still cannot figure out why this line is required
     }
-    // Older points fade to non-existence
-    if(feed.length >= 2){
-        for(var i = 1; i < feed.length; i++){
+
+    if(feed.length > 0){
+        for(var i = 0; i < feed.length; i++){
+            var loc = { lat: feed[i].lat, lon: feed[i].lon };
             if(DEBUG){
-                var tempLoc = offsetCoordinatesFromSpringHill(feed[i].lat, feed[i].lon);
-                createTrackingPoint(tempLoc.lat, tempLoc.lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude);
-            } else {
-                createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude);
+                loc = offsetCoordinatesFromSpringHill(feed[i].lat, feed[i].lon);
+            } 
+
+            createTrackingPoint(loc.lat, loc.lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude, i == 0);
+            if(i == 0){
+                updateZone(loc.lat, loc.lon, feed[i].altitude);
             }
-            
         }
     }
 
@@ -392,11 +343,12 @@ function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMo
     var elevation = altitude ? altitude : loc.elev;
     var estimated = altitude == 0 ? "true" : "false";
 
+    // Encoding data in the mesh name because for some reason it seemed easier at the time (and I'm too scared to refactor at this point)
     point.name="T~" + type + "~" + timestamp + "~" + lat + "~" + lon + "~" + elevation + "~" + estimated;
 
     if(isMostRecent){
-        scene.add(point);
         mostRecentTracker = point;
+        scene.add(point);
     } else {
         trackersParent.add( point );
     }
@@ -420,10 +372,10 @@ function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMo
 // Convert coordinates of local starting point (35.755874, -86.869595)
 // to Whitney trailhead (36.586942, -118.240147) for testing
 function offsetCoordinatesFromSpringHill(lat, lon){
-    var localTestStart = {lat: 35.755874, lon: -86.869595};
-    var trailheadStart = {lat: 36.586942, lon: -118.240147};
-    var offsetLat = localTestStart.lat - trailheadStart.lat;
-    var offsetLon = localTestStart.lon - trailheadStart.lon;
+    const localTestStart = {lat: 35.755874, lon: -86.869595};
+    const trailheadStart = {lat: 36.586942, lon: -118.240147};
+    const offsetLat = localTestStart.lat - trailheadStart.lat;
+    const offsetLon = localTestStart.lon - trailheadStart.lon;
 
     // I'm likely to forget to remove this before our trip, so as a failsafe, no coordinate offset after Aug 10
     var cutoffDate = new Date("08/10/2022");
@@ -435,53 +387,54 @@ function offsetCoordinatesFromSpringHill(lat, lon){
 }
 
 function updateZone(lat, lon, altitude){
+    // Default location
     var zoneName = "Inyo National Forest";
-    var zoneDetails = "Home for three days";
-    var zoneElevation = altitude;
+    var pointElevation = Math.round(metersToFeet(altitude));
     var onMap = true;
 
+    // If most recent point is off-map, make the default message time-based for this specific trip
     if(lat > maxSafeLat || lat < minSafeLat || lon > maxSafeLon || lon < minSafeLon){
         zoneName = getFlavorTextByTime();
-        zoneElevation = 0;
+        pointElevation = 0;
         onMap = false;
     }
 
+    // Check every defined zone
     for(var i = 0; i < zoneData.length; i++){
-        // Draw zone lines (Testing only, enable material visibility for debugging)
+
+        // Draw zone lines (for DEBUG)
         var vertices_array = [];
         for(var j = 0; j < zoneData[i].polygonPoints.length; j++){
             var location = findVertexLocationFromLatLon(zoneData[i].polygonPoints[j][0], zoneData[i].polygonPoints[j][1]);
             vertices_array.push(location.x, location.y + 0.1, location.z);
         }
-    
         var zoneGeometry = new THREE.BufferGeometry();
         zoneGeometry.setAttribute('position', new THREE.Float32BufferAttribute( vertices_array, 3 ));
-        var zoneColor = getZoneMaterial(zoneData[i].color);
-        var zone = new THREE.Line(zoneGeometry, zoneColor);
+        var zone = new THREE.Line(zoneGeometry, getZoneMaterial(zoneData[i].color));
         zone.name = "Zone~" + zoneData[i].name;
-        
         zoneParent.add(zone);
 
+        // Check point
         if( insidePoly([lat, lon], zoneData[i].polygonPoints)){
             zoneName = zoneData[i].name;
-            zoneDetails = zoneData[i].info;
-            zoneElevation = (zoneData[i].elevation && zoneElevation <= 0) ? zoneData[i].elevation : zoneElevation;
+            pointElevation = (zoneData[i].elevation && pointElevation <= 0) ? zoneData[i].elevation : pointElevation;
         }
     }
+
     // Update tracking panels with zone info
-    var elevationMessage = zoneElevation > 0 ? "Currently at " + zoneElevation + "ft" : "Currently at ";
+    var elevationMessage = pointElevation > 0 ? "Currently at " + pointElevation + "ft" : "Currently at ";
     if(!onMap){
         elevationMessage = "Not on map";
     }
     document.getElementById("zone-elevation").textContent = elevationMessage;
     document.getElementById("zone-name").textContent = zoneName;
-    //document.getElementById("zone-info").textContent = zoneDetails;
     
+    // Zero out and re-center
     zoneParent.position.x = 0;
     zoneParent.position.y = 0;
     zoneParent.position.z = 0;
-    
     recenterMap(zoneParent);
+
     if(!DEBUG || !SHOW_ZONES){
         zoneParent.visible = false;
     } else {
@@ -869,6 +822,9 @@ function getCompassMaterial(opac){
 }
 
 function getTrackingPointMaterial(index, length){
+    if(index == 0){
+        return trackingHighlightMaterial;
+    }
     var opacity = 1.0 - ((index * 1.0) / length);
     var mat = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -894,40 +850,10 @@ function getZoneMaterial(color){
 
 function getLandmarkProperties(landmark){
     const textureLoader = new THREE.TextureLoader();
-    var texturePath;
 
-    var iconSize = 0.06;
-
-    switch(landmark.type){
-        case "trailhead":
-            texturePath = "assets/markers/hike.png";
-            break;
-        case "peak":
-            texturePath = "assets/markers/mountain.png";
-            break;
-        case "junction":
-            texturePath = "assets/markers/signs.png";
-            break;
-        case "switchbacks":
-            texturePath = "assets/markers/switchback.png";
-            break;
-        case "camp":
-            texturePath = "assets/markers/tent.png";
-            break;
-        case "treeline":
-            texturePath = "assets/markers/trees.png";
-            iconSize = 0.03;
-            break;
-        case "river ford":
-            texturePath = "assets/markers/water.png";
-            iconSize = 0.03;
-            break;
-        case "lake":
-            texturePath = "assets/markers/water.png";
-            break;
-        default:
-            texturePath = "/assets/markers/hike.png";
-    }
+    const iconSize = landmark.iconSize ? landmark.iconSize : 0.06;
+    const textureIcon = landmark.textureName ? landmark.textureName : "hike"; 
+    const texturePath = "/assets/markers/" + textureIcon + ".png";
 
     const texture = textureLoader.load(texturePath);
     const markerMaterial = new THREE.MeshBasicMaterial({ map: texture });
@@ -988,7 +914,7 @@ function showTrackerPanel(data){
 
 function checkIntersect()
 {
-	// create an array containing all objects in the scene with which the ray intersects (Visible only)
+	// Only intersectable & visible objects (Landmarks and tracking points)
     var arrayToCheck = []
     arrayToCheck = arrayToCheck.concat(landmarkAndOutlineParent.visible ? landmarkParent.children : []);
     arrayToCheck = arrayToCheck.concat(trackersParent.visible ? trackersParent.children : []);
@@ -999,26 +925,21 @@ function checkIntersect()
 	// if there is one (or more) intersections
 	if ( landmarkIntersects.length > 0 )
 	{
-		// if the closest object intersected is not the currently stored intersection object
 		if ( landmarkIntersects[0].object != INTERSECTED ) 
 		{
             try{
-                var outline = outlineParent.getObjectByName("O~" + INTERSECTED.name);
-                outline.visible = false;
+                outlineParent.getObjectByName("O~" + INTERSECTED.name).visible = false;
             } catch(e){};
             try{
-                outline = trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name);
-                outline.visible = false;
+                trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name).visible = false;
             } catch(e){};
 
 			INTERSECTED = landmarkIntersects[0].object;
 
             if(INTERSECTED.name.startsWith("LM~")){
-                var outline = outlineParent.getObjectByName("O~" + INTERSECTED.name);
-                outline.visible = true;
+                outlineParent.getObjectByName("O~" + INTERSECTED.name).visible = true;
             } else if(INTERSECTED.name.startsWith("T~")){
-                var outline = trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name);
-                outline.visible = true;
+                trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name).visible = true;
             }
 		}
 	} 
@@ -1026,36 +947,21 @@ function checkIntersect()
 	{
         if(INTERSECTED ){
             try{
-                var outline = outlineParent.getObjectByName("O~" + INTERSECTED.name);
-                outline.visible = false;
+                outlineParent.getObjectByName("O~" + INTERSECTED.name).visible = false;
             } catch(e){};
             try{
-                outline = trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name);
-                outline.visible = false;
+                trackersOutlineParent.getObjectByName("O~" + INTERSECTED.name).visible = false;
             } catch(e){};
         }
-        
 		INTERSECTED = null;
 	}
-}
-
-// Testing purposes only
-function checkDebugIntersect(){
-    var intersectList = raycaster.intersectObjects( mapParent.children, true );
-    if ( intersectList.length > 0 )
-	{
-        DEBUG_INTERSECTED = intersectList[0];
-	} 
-	else
-	{
-        DEBUG_INTERSECTED = null;
-    }
 }
 
 // Check if coordinates are within a defined polygon
 function insidePoly(point, vs) {
     // ray-casting algorithm based on
     // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
+    // then shamelessly stolen from StackOverflow by Shawn
     
     var x = point[0], y = point[1];
     
@@ -1096,7 +1002,9 @@ function getRemoteFeedData(){
 }
 
 function normalizeSpotFeed(data){
-    console.log("Source: " + data.source);
+    if(DEBUG){
+        console.log("Source: " + data.source);
+    }
     var feed = [];
     var respMessages = data.feed.response.feedMessageResponse.messages.message; //Ew, Spot.  What on earth?
     for(var i = 0; i < respMessages.length; i++){
@@ -1114,6 +1022,42 @@ function normalizeSpotFeed(data){
     return feed;
 }
 
+// ---- UI ----
+
+function checkToggle(event){
+    var parentObject;
+    switch(event.target.value){
+        case "landmarks":
+            parentObject = landmarkAndOutlineParent;
+            break;
+        case "route":
+            parentObject = routeParent;
+            break;
+        case "tracking":
+            parentObject = trackersParent;
+            break;
+        case "compass":
+            parentObject = compass;
+            break;
+        default:
+            break;
+    }
+
+    parentObject.visible = event.target.checked;
+}
+
+function collapse(event){
+    event.target.classList.toggle("active");
+    document.querySelector('#layers-toggle i').classList.toggle("rotated");
+    document.querySelector('#legend').classList.toggle("open");
+    var content = document.querySelector('#toggles');
+    if (content.style.maxHeight){
+        content.style.maxHeight = null;
+    } else {
+        content.style.maxHeight = "200px";
+    }
+}
+
 function onDocumentMouseMove( event ){
 	mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
 	mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
@@ -1122,9 +1066,8 @@ function onDocumentMouseMove( event ){
 }
 
 function onDocumentMouseClick( event ){
-    // Use INTERSECT to grab information and update the panel if landmark
+    // Use INTERSECT to grab information and update the panel if landmark/tracker
     if(INTERSECTED && INTERSECTED.name.startsWith("LM")){
-        //console.log(INTERSECTED);
         var index = INTERSECTED.name.split("~")[1];
         showInfoPanel({
             title: landmarkData[index].tag,
@@ -1134,7 +1077,6 @@ function onDocumentMouseClick( event ){
         });
     }
     if(INTERSECTED && INTERSECTED.name.startsWith("T")){
-        // "T-" + type + "-" + timestamp + "-" + lat + "-" + lon + "-" + loc.elev;
         var fields = INTERSECTED.name.split("~");
         var dateString = formatDate(parseInt(fields[2]));
 
@@ -1148,13 +1090,12 @@ function onDocumentMouseClick( event ){
         });
     }
 
-    // No valid objects clicked on
+    // No valid objects clicked on, close panels
     if(!INTERSECTED){
         hideInfoPanel();
         hideTrackerPanel();
     }
 
-    // Debug only - can remove before release (or leave for fun)
     if(DEBUG && DEBUG_INTERSECTED){
         var point = DEBUG_INTERSECTED.point;
         // Hacky hacky hacky, but it'll do
@@ -1179,7 +1120,7 @@ function onDocumentMouseClick( event ){
     }
 }
 
-// DEBUG
+// DEBUG enabler
 document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
     var keyCode = event.which;
@@ -1195,6 +1136,19 @@ function onDocumentKeyDown(event) {
         console.log("toggle zone display");
     }
 };
+
+// Testing purposes only
+function checkDebugIntersect(){
+    var intersectList = raycaster.intersectObjects( mapParent.children, true );
+    if ( intersectList.length > 0 )
+	{
+        DEBUG_INTERSECTED = intersectList[0];
+	} 
+	else
+	{
+        DEBUG_INTERSECTED = null;
+    }
+}
 
 // Map to our standardized event types
 //   CHECK-IN

@@ -6,6 +6,7 @@ const whitneyTrailLandmarks = [
         "tag": "Trail Crest",
         "info": "The junction of the Mount Whitney Trail and the 211 mile John Muir Trail; don't miss your turn",
         "type": "junction",
+        "textureName": "signs",
         "iconname": "fa-signs-post"
     },
     {
@@ -15,6 +16,7 @@ const whitneyTrailLandmarks = [
         "info": "Technically 97, but who's counting?  This chunk of steep zig-zagging will be most of our morning; with any luck we'll make Trail Crest before sunrise.",
         "link": "https://4055b5b7-a-62cb3a1a-s-sites.googlegroups.com/site/mtwhitneytrailinfo/MtWhitneyTrail/waypoints/WaynePyle97Switchbacks.pdf?attachauth=ANoY7crMqLkQvtDI0u4-gEw_Jk3PmgAYSSE7einW856Fi23PldSSag-rtzMIZ-9u0PgsbVlOf59C6Bwl6VS9erSUXlGejCoaSE7cE2HpsDy_EEWmFF5xc1Z8zwMGmbre-ntJHyr7FTL4jTbKanoQz2VnSrhsXk-1gbDOisRjH3X-caGl3_yaOUsEyKs44ElO0g-UeFr10FmV6GE3eqtyd1ff2VZrsPfFj4vTsx7vy3Nm3x4xfT1RyZEt1YenHVgx4Z5a73X4r6KxpLQWIgm_57g3utoPAILdRA%3D%3D&attredirects=0",
         "type": "switchbacks",
+        "textureName": "switchback",
         "hoverBoost": 0.03,
         "iconname": "fa-s fa-flip-horizontal"
     },
@@ -22,40 +24,50 @@ const whitneyTrailLandmarks = [
         "lat": "36.5654812",
         "lon": "-118.2719387",
         "tag": "Creek Crossing",
-        "info": "One of many river crossings on the way up the trail (although this one has stepping stones)",
+        "info": "One of many stream crossings on the way up the trail (although this one has stepping stones)",
         "type": "river ford",
+        "textureName": "water",
+        "iconSize": 0.03,
         "iconname": "fa-water"
     },
     {
         "lat": "36.5709070",
         "lon": "-118.2617096",
         "tag": "Lone Pine Creek Crossing",
-        "info": "One of many river crossings to wade during the trail",
+        "info": "One of many stream crossings to wade during the trail",
         "type": "river ford",
+        "textureName": "water",
+        "iconSize": 0.03,
         "iconname": "fa-water"
     },
     {
         "lat": "36.5719575",
         "lon": "-118.2592566",
         "tag": "Lone Pine Creek Crossing",
-        "info": "One of many river crossings to wade during the trail",
+        "info": "One of many stream crossings to wade during the trail",
         "type": "river ford",
+        "textureName": "water",
+        "iconSize": 0.03,
         "iconname": "fa-water"
     },
     {
         "lat": "36.5711046",
         "lon": "-118.2584299",
         "tag": "Lone Pine Creek Crossing",
-        "info": "One of many river crossings to wade during the trail",
+        "info": "One of many stream crossings to wade during the trail",
         "type": "river ford",
+        "textureName": "water",
+        "iconSize": 0.03,
         "iconname": "fa-water"
     },
     {
         "lat": "36.5868294",
         "lon": "-118.2453406",
         "tag": "Creek Crossing",
-        "info": "One of many crossings to wade during the trail",
+        "info": "One of many stream crossings to wade during the trail",
         "type": "river ford",
+        "textureName": "water",
+        "iconSize": 0.03,
         "iconname": "fa-water"
     },
     {
@@ -63,9 +75,10 @@ const whitneyTrailLandmarks = [
         "lon": "-118.2401401",
         "elev": "8,330 ft",
         "tag": "Whitney Portal Trailhead",
-        "info": "The perfect spot to begin 6,150ft of elevation gain, and return point once we're at the end of our physical ability. (Fingers crossed the bears haven't taken an interest in our rental car contents)",
+        "info": "The return point once we're at the end of our physical ability. (Fingers crossed the bears haven't taken an interest in our rental car contents)",
         "type": "trailhead",
         "hoverBoost": 0.01,
+        "textureName": "hike",
         "iconname": "fa-person-hiking"
     },
     {
@@ -75,6 +88,7 @@ const whitneyTrailLandmarks = [
         "tag": "Trail Camp",
         "info": "Our home for 2 nights, and the last dependable water source before the summit (Filtering out giardia recommended)",
         "type": "camp",
+        "textureName": "tent",
         "iconname": "fa-campground"
     },
     {
@@ -84,6 +98,7 @@ const whitneyTrailLandmarks = [
         "tag": "Whitney Portal Campground",
         "info": "The last driveable & campable place before backpacking up the mountain",
         "type": "camp",
+        "textureName": "tent",
         "hoverBoost": 0.01,
         "iconname": "fa-campground"
     },
@@ -94,6 +109,7 @@ const whitneyTrailLandmarks = [
         "elev": "14,505 feet",
         "info": "The highest point in the lower 48 states.",
         "type": "peak",
+        "textureName": "mountain",
         "hoverBoost": 0.05,
         "iconname": "fa-mountain"
     },
@@ -104,6 +120,7 @@ const whitneyTrailLandmarks = [
         "elev": "10,050 feet",
         "info": "2.5 Miles into the woods and the first significant checkpoint",
         "type": "lake",
+        "textureName": "fish",
         "hoverBoost": 0.01,
         "iconname": "fa-fish"
     },
@@ -114,6 +131,7 @@ const whitneyTrailLandmarks = [
         "elev": "10,100 feet",
         "info": "Past this point all hikers require a Mount Whitney permit (Day or Overnight).  These are distributed with a yearly lottery, and these summer dates are highly competitive - plan in advance.",
         "type": "junction",
+        "textureName": "signs",
         "hoverBoost": 0.01,
         "iconname": "fa-road-barrier"
     },
