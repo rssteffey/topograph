@@ -10,8 +10,6 @@ const routeData = whitneyTrailData;
 const landmarkData = whitneyTrailLandmarks;
 const zoneData = whitneyZones;
 
-const spotFeedID = "0YKNZixWQl9CToVotgl85nW4jSkyJSEid";
-
 const GRID_X_OFFSET = 0.1;
 const GRID_Z_OFFSET = 0.1;
 const ELEVATION_MODIFIER = 0.0009;
@@ -51,7 +49,6 @@ var maxElevation = pointsData.maxElevation || -11000; // Marianas Trench; see ab
 var minSafeLat, minSafeLon, maxSafeLat, maxSafeLon;
 
 var smoothedElevationGrid;
-var trackingPoints = []; //store tracking points to delete when pulling new data
 var landmarks = []; // Store to rotate towards camera
 
 // Object references for toggleability visibility
@@ -96,6 +93,8 @@ var mouse = new THREE.Vector2();
 const mouseDelta = 6;
 let startX;
 let startY;
+
+var timeoutFunction;
 
 var infoPanel, trackerPanel;
 
@@ -335,15 +334,12 @@ function rotateLandmarksToFollowCamera(){
 }
 
 function createTrackingPath(feed){
-
     //delete old tracking objects
-    for(var j = 0; j < trackingPoints.length; j++){
-        scene.remove(trackingPoints[j]);
-    }
-    for (var i = trackersOutlineParent.children.length - 1; i >= 0; i--) {
-        scene.remove(trackersOutlineParent.children[i]);
-    }
-    trackingPoints = [];
+    trackersParent.remove(...trackersParent.children);
+    trackersOutlineParent.remove(...trackersOutlineParent.children);
+    scene.remove(trackersParent);
+    scene.remove(trackersOutlineParent);
+    scene.remove(mostRecentTracker);
 
     // Latest point gets special dot
     if(feed.length > 0){
@@ -351,8 +347,12 @@ function createTrackingPath(feed){
         // Update zone tracker
         var altitude = feed[0].altitude ? feed[0].altitude : 0;
         // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
-        var tempLoc = offsetCoordinatesFromSpringHill(feed[0].lat, feed[0].lon);
-        updateZone(tempLoc.lat, tempLoc.lon, Math.round(metersToFeet(altitude)));
+        if(DEBUG){
+            var tempLoc = offsetCoordinatesFromSpringHill(feed[0].lat, feed[0].lon);
+            updateZone(tempLoc.lat, tempLoc.lon, Math.round(metersToFeet(altitude)));
+        } else {
+            updateZone(feed[0].lat, feed[0].lon, Math.round(metersToFeet(altitude)));
+        }
     }
     // Older points fade to non-existence
     if(feed.length >= 2){
@@ -369,9 +369,12 @@ function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMo
     const geometry = new THREE.CylinderGeometry( .04, .04, 0.01, 4 );
     geometry.name = "Tracker~" + timestamp;
     const point = new THREE.Mesh( geometry, material );
+    var loc = findVertexLocationFromLatLon(lat, lon, true);
     // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
-    var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
-    var loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon, true);
+    if(DEBUG){
+        var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
+        loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon, true);
+    }
     var boost = isMostRecent ? MOST_RECENT_BOOST : 0;
     point.position.x = loc.x;
     point.position.y = loc.y + TRACK_HOVER + boost;
@@ -389,8 +392,6 @@ function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMo
     } else {
         trackersParent.add( point );
     }
-
-    trackingPoints.push(point)
 
     // Add outline mesh to render when hovered
     const OUTLINE_WIDTH = 0.01;
@@ -1091,7 +1092,7 @@ function insidePoly(point, vs) {
 //  I'm hitting a custom Lambda function that handles feed caching so we aren't slamming Spot with too many requests
 //  That being said - don't slam me with too many requests :)
 function getRemoteFeedData(){
-    const url = "https://wdwkhs4lxfbzzazoo6z4dgd6be0kwtpf.lambda-url.us-east-1.on.aws/?spotfeed=" + spotFeedID;
+    const url = "https://wdwkhs4lxfbzzazoo6z4dgd6be0kwtpf.lambda-url.us-east-1.on.aws";
     const http = new XMLHttpRequest();
     http.open("GET", url);
     http.send();
@@ -1099,7 +1100,7 @@ function getRemoteFeedData(){
     // Poll for new tracking points every 5 minutes
     // Technically Spot sends tracking points every 10 minutes, but because of latency, time acquiring signal, etc, this ends up more like intervals of 7-13 minutes
     // Since 10 minute polling would potentially leave 20 minute updates in half these cases, we're splitting the difference. (And hoping not to overwhelm Lambda)
-    setTimeout(getRemoteFeedData, 300000)
+    timeoutFunction = setTimeout(getRemoteFeedData, 300000)
 
     http.onreadystatechange = function() {
         if(this.readyState == 4 && this.status==200){
@@ -1199,8 +1200,10 @@ document.addEventListener("keydown", onDocumentKeyDown, false);
 function onDocumentKeyDown(event) {
     var keyCode = event.which;
     if (keyCode == 192) {
-        DEBUG = true;
-        console.log("debug mode enabled");
+        DEBUG = !DEBUG;
+        console.log("debug mode toggled " + ( DEBUG ? "ON" : "OFF"));
+        clearTimeout(timeoutFunction);
+        getRemoteFeedData();
     }
     if (keyCode == 90 && DEBUG) {
         SHOW_ZONES = !SHOW_ZONES;
