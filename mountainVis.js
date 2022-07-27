@@ -26,7 +26,7 @@ const SMOOTHING_FACTOR = 0.15;
 const colorCutoff1 = 3200;
 const colorCutoff2 = 3800;
 
-// Make null to use the colorScheme instead
+// Make null to use a colorScheme instead
 const textureAssetPath = "assets/whitneyTextureLowRes.png"
 
 // Available color schemes
@@ -343,21 +343,28 @@ function createTrackingPath(feed){
 
     // Latest point gets special dot
     if(feed.length > 0){
-        createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, feed[0].altitude, true);
         // Update zone tracker
         var altitude = feed[0].altitude ? feed[0].altitude : 0;
-        // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
+        // TEST FROM SPRING HILL (DEBUG ONLY)
         if(DEBUG){
             var tempLoc = offsetCoordinatesFromSpringHill(feed[0].lat, feed[0].lon);
+            createTrackingPoint(tempLoc.lat, tempLoc.lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, feed[0].altitude, true);
             updateZone(tempLoc.lat, tempLoc.lon, Math.round(metersToFeet(altitude)));
         } else {
+            createTrackingPoint(feed[0].lat, feed[0].lon, feed[0].type, feed[0].timestamp, trackingHighlightMaterial, feed[0].altitude, true);
             updateZone(feed[0].lat, feed[0].lon, Math.round(metersToFeet(altitude)));
         }
     }
     // Older points fade to non-existence
     if(feed.length >= 2){
         for(var i = 1; i < feed.length; i++){
-            createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude);
+            if(DEBUG){
+                var tempLoc = offsetCoordinatesFromSpringHill(feed[i].lat, feed[i].lon);
+                createTrackingPoint(tempLoc.lat, tempLoc.lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude);
+            } else {
+                createTrackingPoint(feed[i].lat, feed[i].lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude);
+            }
+            
         }
     }
 
@@ -366,15 +373,16 @@ function createTrackingPath(feed){
 }
 
 function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMostRecent = false){
+
+    // If off-map, no point
+    if(lat > maxSafeLat || lat < minSafeLat || lon > maxSafeLon || lon < minSafeLon){
+        return;
+    }
+
     const geometry = new THREE.CylinderGeometry( .04, .04, 0.01, 4 );
     geometry.name = "Tracker~" + timestamp;
     const point = new THREE.Mesh( geometry, material );
     var loc = findVertexLocationFromLatLon(lat, lon, true);
-    // TEST FROM SPRING HILL (REMOVE BEFORE TRIP)
-    if(DEBUG){
-        var tempLoc = offsetCoordinatesFromSpringHill(lat, lon)
-        loc = findVertexLocationFromLatLon(tempLoc.lat, tempLoc.lon, true);
-    }
     var boost = isMostRecent ? MOST_RECENT_BOOST : 0;
     point.position.x = loc.x;
     point.position.y = loc.y + TRACK_HOVER + boost;
@@ -427,10 +435,16 @@ function offsetCoordinatesFromSpringHill(lat, lon){
 }
 
 function updateZone(lat, lon, altitude){
-
     var zoneName = "Inyo National Forest";
     var zoneDetails = "Home for three days";
     var zoneElevation = altitude;
+    var onMap = true;
+
+    if(lat > maxSafeLat || lat < minSafeLat || lon > maxSafeLon || lon < minSafeLon){
+        zoneName = getFlavorTextByTime();
+        zoneElevation = 0;
+        onMap = false;
+    }
 
     for(var i = 0; i < zoneData.length; i++){
         // Draw zone lines (Testing only, enable material visibility for debugging)
@@ -455,7 +469,11 @@ function updateZone(lat, lon, altitude){
         }
     }
     // Update tracking panels with zone info
-    document.getElementById("zone-elevation").textContent = zoneElevation > 0 ? "Currently at " + zoneElevation + "ft" : "Currently at ";
+    var elevationMessage = zoneElevation > 0 ? "Currently at " + zoneElevation + "ft" : "Currently at ";
+    if(!onMap){
+        elevationMessage = "Not on map";
+    }
+    document.getElementById("zone-elevation").textContent = elevationMessage;
     document.getElementById("zone-name").textContent = zoneName;
     //document.getElementById("zone-info").textContent = zoneDetails;
     
@@ -919,34 +937,6 @@ function getLandmarkProperties(landmark){
         sideMaterial: sideMaterial,
         size: iconSize
     };
-}
-
-
-
-// Output in California time
-function formatDate(timestamp){
-    var date = new Date(timestamp * 1000);
-
-    var timeString = date.toLocaleTimeString(
-        'en-US',
-        {
-          timeZone: 'pst',
-          hour: 'numeric',
-          minute: 'numeric',
-          hour12: true
-        }
-    );
-
-    var dateString = date.toLocaleDateString(
-        'en-US',
-        {
-          timeZone: 'pst',
-          month: 'long',
-          day: 'numeric'
-        }
-    );
-
-    return  timeString + " (PST), " + dateString;
 }
 
 function hideInfoPanel(){
