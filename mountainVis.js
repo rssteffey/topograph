@@ -992,14 +992,9 @@ function checkIntersect()
     var arrayToCheck = []
     arrayToCheck = arrayToCheck.concat(landmarkAndOutlineParent.visible ? landmarkParent.children : []);
     arrayToCheck = arrayToCheck.concat(trackersParent.visible ? trackersParent.children : []);
-    arrayToCheck.push(mostRecentTracker);
+    if(mostRecentTracker){ arrayToCheck.push(mostRecentTracker); }
 
-	var landmarkIntersects = [];
-    try{
-        landmarkIntersects = raycaster.intersectObjects( arrayToCheck, true );
-    }catch(e){
-        //probably fine
-    }
+	var landmarkIntersects = raycaster.intersectObjects( arrayToCheck, true );
 
 	// if there is one (or more) intersections
 	if ( landmarkIntersects.length > 0 )
@@ -1138,7 +1133,6 @@ function onDocumentMouseClick( event ){
             icon: landmarkData[index].iconname
         });
     }
-
     if(INTERSECTED && INTERSECTED.name.startsWith("T")){
         // "T-" + type + "-" + timestamp + "-" + lat + "-" + lon + "-" + loc.elev;
         var fields = INTERSECTED.name.split("~");
