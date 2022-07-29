@@ -64,7 +64,7 @@ const whitneyTrailLandmarks = [
         "lat": "36.5868294",
         "lon": "-118.2453406",
         "tag": "Creek Crossing",
-        "info": "One of many stream crossings to wade during the trail",
+        "info": "The first of many stream crossings to wade during the trail",
         "type": "river ford",
         "textureName": "water",
         "iconSize": 0.03,

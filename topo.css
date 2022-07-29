@@ -267,3 +267,62 @@ input:checked + .slider:before {
 .slider.round:before {
     border-radius: 50%;
 }
+
+
+/* Mobile */
+
+@media (orientation: portrait) {
+    .panel{
+        min-width: 100%;
+        max-width: 100%;
+        font-size: 1em;
+        left: auto;
+        right: auto;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    #legend {
+        font-size: 0.9em;
+    }
+
+    
+
+    @media (-webkit-device-pixel-ratio: 3) {
+
+        .map-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px #00000099;
+        }
+
+        .map-title h3 {
+            font-weight: 500;
+            font-size: 2em
+        }
+
+        #zone-name {
+            font-size: 1.5em;
+        }
+        
+        #zone-elevation {
+            font-size: 1.3em;
+        }
+
+        #legend {
+            font-size: 1.3em;
+            margin-top: 3em;
+            margin-right: 1em;
+        }
+
+        .panel{
+            font-size: 2.4em;
+            padding-bottom: 1em;
+        }
+
+        .panel-header{
+            padding: 0.8em 1em 0.8em 1em;
+        }
+    }
+
+}
