@@ -126,6 +126,18 @@ const whitneyTrailLandmarks = [
         "iconname": "fa-mountain"
     },
     {
+        "lat": "36.573901",
+        "lon": "-118.290015",
+        "tag": "The Spires",
+        "elev": "14,300 feet",
+        "info": "These spires help give Whitney such a distinctive profile.  We'll be passing by them as we aim for the summit",
+        "type": "peak",
+        "textureName": "mountain",
+        "iconSize": 0.03,
+        "hoverBoost": 0.02,
+        "iconname": "fa-mountain"
+    },
+    {
         "lat": "36.576387",
         "lon": "-118.248317",
         "tag": "Lone Pine Lake",
@@ -152,7 +164,7 @@ const whitneyTrailLandmarks = [
         "lon": "-118.251608",
         "tag": "The Whitney Zone",
         "elev": "10,100 feet",
-        "info": "Past this point all hikers require a Mount Whitney permit (Day or Overnight).  These are distributed with a yearly lottery, and these summer dates are highly competitive - plan in advance.",
+        "info": "Past this point all hikers require a Mount Whitney permit (Day or Overnight).  These are distributed with a yearly lottery, and these summer dates are highly competitive - plan in advance. (Shawn has been trying for 6 years)",
         "type": "junction",
         "textureName": "signs",
         "hoverBoost": 0.01,
