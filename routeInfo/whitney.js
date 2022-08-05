@@ -92,11 +92,23 @@ const whitneyTrailLandmarks = [
         "iconname": "fa-campground"
     },
     {
+        "lat": "36.570973",
+        "lon": "-118.259875",
+        "tag": "Outpost Camp",
+        "elev": "10,400 ft",
+        "info": "Still 1,600 ft of elevation until Trail Camp.  If you see us stopping here for the night, it means we've either been driven down-mountain by storms or altitude sickness.  In either case, we'll be heading out for the summit bid extra early in the morning. (Unless this is on our down-hill half, in which case we're 2 miles closer to a shower)",
+        "type": "camp",
+        "textureName": "tent",
+        "iconname": "fa-campground",
+        "hoverBoost": 0.01,
+        "iconSize": 0.04
+    },
+    {
         "lat": "36.588715",
         "lon": "-118.229271",
         "elev": "8,300 ft",
         "tag": "Whitney Portal Campground",
-        "info": "The last driveable & campable place before backpacking up the mountain",
+        "info": "The last driveable & campable place before backpacking up the mountain.  If you don't see us here on the night of the 11th, we're already off schedule",
         "type": "camp",
         "textureName": "tent",
         "hoverBoost": 0.01,
@@ -119,6 +131,17 @@ const whitneyTrailLandmarks = [
         "tag": "Lone Pine Lake",
         "elev": "10,050 feet",
         "info": "2.5 Miles into the woods and the first significant checkpoint",
+        "type": "lake",
+        "textureName": "fish",
+        "hoverBoost": 0.01,
+        "iconname": "fa-fish"
+    },
+    {
+        "lat": "36.561391",
+        "lon": "-118.272203",
+        "tag": "Consultation Lake",
+        "elev": "11,800 feet",
+        "info": "Just shy of Trail Camp, Consultation Lake is a viable second choice for spending the night if camp is looking too crowded",
         "type": "lake",
         "textureName": "fish",
         "hoverBoost": 0.01,

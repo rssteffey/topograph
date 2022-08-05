@@ -1006,7 +1006,7 @@ function normalizeSpotFeed(data){
         console.log("Source: " + data.source);
     }
     var feed = [];
-    var respMessages = data.feed.response.feedMessageResponse.messages.message; //Ew, Spot.  What on earth?
+    var respMessages = data.feed;
     for(var i = 0; i < respMessages.length; i++){
         respMessages[i]
         var trackingPoint = {
