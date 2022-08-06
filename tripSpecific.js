@@ -14,7 +14,7 @@ function getFlavorTextByTime(){
         var pstHours = (now.getHours() + userOffset + 24) % 24;
         // If hours cross days, subtract back to PST
         // No this doesn't work at the end of the month; No I do not care in this project where I hike on Aug 13th.
-        var pstDate = 15; //now.getDate();
+        var pstDate = now.getDate();
         
         if(pstHours > now.getHours()){
             pstDate--;
