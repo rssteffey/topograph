@@ -390,6 +390,7 @@ function updateZone(lat, lon, altitude){
     // Default location
     var zoneName = "Inyo National Forest";
     var pointElevation = Math.round(metersToFeet(altitude));
+    var finalElevation = 0;
     var onMap = true;
 
     // If most recent point is off-map, make the default message time-based for this specific trip
@@ -417,12 +418,14 @@ function updateZone(lat, lon, altitude){
         // Check point
         if( insidePoly([lat, lon], zoneData[i].polygonPoints)){
             zoneName = zoneData[i].name;
-            pointElevation = (zoneData[i].elevation && pointElevation <= 0) ? zoneData[i].elevation : pointElevation;
+            finalElevation = (zoneData[i].elevation && pointElevation <= 0) ? zoneData[i].elevation : pointElevation;
         }
     }
 
+    finalElevation = finalElevation == 0 ? pointElevation : finalElevation;
+
     // Update tracking panels with zone info
-    var elevationMessage = pointElevation > 0 ? "Currently at " + pointElevation + "ft" : "Currently at ";
+    var elevationMessage = finalElevation > 0 ? "Currently at " + finalElevation + "ft" : "Currently at ";
     if(!onMap){
         elevationMessage = "Not on map";
     }

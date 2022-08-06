@@ -55,7 +55,7 @@ const whitneyZones = [
     {
         name: "The Meadows",
         info: "Home to Outpost Camp, but we're packing right on by up towards Trail Camp (Potentially with the audible to camp here on night #2)",
-        elevation: 12000,
+        elevation: 11000,
         color: 0x448844,
         polygonPoints: [
             [ 36.5714827, -118.2659697],
@@ -141,6 +141,21 @@ const whitneyZones = [
             [ 36.5769131, -118.2903437 ],
             [ 36.5771196, -118.2933502 ],
             [ 36.5797819, -118.2936417 ]
+        ]
+    },
+    {
+        name: "Outpost Camp",
+        info: "Camping further downhill",
+        elevation: 10300,
+        color: 0xaaff44,
+        polygonPoints: [
+            [ 36.5712668, -118.2599327 ],
+            [ 36.5724898, -118.2594775 ],
+            [ 36.5724326, -118.2580017 ],
+            [ 36.5713665, -118.2574571 ],
+            [ 36.5703798, -118.2575594 ],
+            [ 36.5702497, -118.2594733 ],
+            [ 36.5712667, -118.2599326 ]
         ]
     },
     {
