@@ -10,14 +10,13 @@ I love Node, but hosting a server for this feels like overkill until I find it a
 
 Good news, this is simple(ish)!
 
-You really just need to
 - Point things at your own [Spot™ GPS feed](https://www.findmespot.com/en-us/support/spot-x/get-help/general/spot-api-support)
 - Update the bonus tracker text for when the tracker is off-map
 
 To change the url in `getRemoteFeedData()`, swap my Lambda URL to your Spot json URL. 
 >https://api.findmespot.com/spot-main-web/consumer/rest-api/2.0/public/feed/{your_spot_feed_id}/message.json
 
-(You may also have to remove a layer of nesting in `normalizeSpotFeed()`)
+(You can also deploy your own AWS Lambda caching function; see `lambdaCache.js` to copy mine)
 
 If you're using a different tracker like InReach, you'll unfortunately have to customize those relevant methods yourself.  Hopefully it should be limited to those 2/3, since `normalizeSpotFeed()` is meant to standardize your results.
 
@@ -95,7 +94,7 @@ Replace the imports near the top of `mountainVis.js` with your new data sources
 
 The tracking points are sourced from a [Spot™ Satellite Tracker XML feed](https://www.findmespot.com/en-us/support/spot-x/get-help/general/spot-api-support).  I ended up keeping this call in an AWS Lambda function to handle caching in 10 minute intervals and protect my feed ID.
 
-If using this for your own project, change the url in `getRemoteFeedData()` directly to your SPOT JSON URL. (You may also have to remove a layer of nesting in `normalizeSpotFeed()`)
+If using this for your own project, change the url in `getRemoteFeedData()` directly to your SPOT JSON URL. (or deploy your own copy of the Lambda, as mentioned in the "Using this for your own Mt. Whitney Hike" section)
 
 ---
 
