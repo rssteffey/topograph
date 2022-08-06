@@ -14,18 +14,18 @@ function getFlavorTextByTime(){
         var pstHours = (now.getHours() + userOffset + 24) % 24;
         // If hours cross days, subtract back to PST
         // No this doesn't work at the end of the month; No I do not care in this project where I hike on Aug 13th.
-        var pstDate = now.getDate();
+        var pstDate = 15; //now.getDate();
         
         if(pstHours > now.getHours()){
             pstDate--;
         }
         
         if((pstDate <= 10 && now.getMonth() == 7) || now.getMonth() < 7){
-            return "Still in TN";
+            return "Still in TN; check back on the 11th";
         } // Aug 11
         else if (pstDate == 11 && now.getMonth() == 7){ 
             // Flight leaves at 7:15a CST (5:15a PST)
-            if(pstHours >= 5 && pstHours < 10){
+            if(pstHours < 10){
                 return "Flying to LAX";
             }
             if(pstHours >= 10 && pstHours < 12){
@@ -39,7 +39,7 @@ function getFlavorTextByTime(){
             }
         } // Aug 12
         else if (now.getMonth() == 7 && pstDate == 12 && pstHours > 10){
-            return "If you see this, we may have had to cut the hike short or our tracker is sending faulty data.";
+            return "If you see this, we may have had to alter the schedule or our tracker is sending faulty data.";
         } // Aug 13
         else if (now.getMonth() == 7 && pstDate == 13){
             return "There's a chance that if you see this message, it means we felt so good after summitting that we hiked right back out the same day (but more likely it's a bug)";
@@ -52,8 +52,21 @@ function getFlavorTextByTime(){
                 return "Probably drinking a giant margarita and/or sleeping";
             }
         } // 15-16
-        else if ((pstDate >= 15 || pstDate == 16) && now.getMonth() == 7){
-            return "We're on Splash Mountain; You missed the hike";
+        else if ((pstDate == 15 || pstDate == 16) && now.getMonth() == 7){
+            const randMountain = Math.floor(Math.random() * 4);
+            switch (randMountain){
+                case 0:
+                    return "We're on Splash Mountain; You missed the hike";
+                case 1:
+                    return "We're on Space Mountain; You missed the hike";
+                case 2:
+                    return "We're on Big Thunder Mountain; You missed the hike";
+                case 3:
+                    return "We're on the Matterhorn; You missed the hike";
+                default:
+                    return "We're on it's a small world; You missed the hike"; //fallback non-mountain for when my code breaks
+            }
+            
         } // The rest
         else {
             return "You missed the live hike!  I'll try to update this site with the historical data soon"

@@ -369,13 +369,13 @@ function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMo
     trackersOutlineParent.add(pointOutline);
 }
 
-// Convert coordinates of local starting point (35.755874, -86.869595)
-// to Whitney trailhead (36.586942, -118.240147) for testing
+// Convert coordinates of local ending point (35.755874, -86.869595)
+// to Whitney summit for testing
 function offsetCoordinatesFromSpringHill(lat, lon){
-    const localTestStart = {lat: 35.755874, lon: -86.869595};
-    const trailheadStart = {lat: 36.586942, lon: -118.240147};
-    const offsetLat = localTestStart.lat - trailheadStart.lat;
-    const offsetLon = localTestStart.lon - trailheadStart.lon;
+    const localTestEnd = {lat: 35.775257, lon: -86.918886};
+    const trailheadEnd = {lat: 36.578509, lon: -118.292347};
+    const offsetLat = localTestEnd.lat - trailheadEnd.lat;
+    const offsetLon = localTestEnd.lon - trailheadEnd.lon;
 
     // I'm likely to forget to remove this before our trip, so as a failsafe, no coordinate offset after Aug 10
     var cutoffDate = new Date("08/10/2022");
