@@ -321,6 +321,9 @@ function createTrackingPath(feed){
                 updateZone(loc.lat, loc.lon, feed[i].altitude);
             }
         }
+    } else {
+        // Update zone with empty feed?
+        updateZone(42.0, -160.0, 0) // VERY out of bounds points
     }
 
     scene.add(trackersParent);
@@ -1018,24 +1021,29 @@ function getRemoteFeedData(){
 }
 
 function normalizeSpotFeed(data){
-    if(DEBUG){
-        console.log("Source: " + data.source);
-    }
-    var feed = [];
-    var respMessages = data.feed;
-    for(var i = 0; i < respMessages.length; i++){
-        respMessages[i]
-        var trackingPoint = {
-            type: mapMessageType(respMessages[i].messageType),
-            lat: respMessages[i].latitude,
-            lon: respMessages[i].longitude,
-            timestamp: respMessages[i].unixTime,
-            altitude: respMessages[i].altitude
-        };
-        feed.push(trackingPoint);
-    }
+    try{
+        if(DEBUG){
+            console.log("Source: " + data.source);
+        }
+    
+        var feed = [];
+        var respMessages = data.feed;
+        for(var i = 0; i < respMessages.length; i++){
+            respMessages[i]
+            var trackingPoint = {
+                type: mapMessageType(respMessages[i].messageType),
+                lat: respMessages[i].latitude,
+                lon: respMessages[i].longitude,
+                timestamp: respMessages[i].unixTime,
+                altitude: respMessages[i].altitude
+            };
+            feed.push(trackingPoint);
+        }
 
-    return feed;
+        return feed;
+    } catch (e){
+        return [];
+    }
 }
 
 // ---- UI ----
