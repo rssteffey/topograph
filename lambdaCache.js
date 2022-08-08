@@ -47,7 +47,11 @@ function getFullSpotFeed(host, path, messages = []) {
         if(data.response.errors){
             resolve(messages);
         } else {
-            messages = messages.concat(...data.response.feedMessageResponse.messages.message);
+            var messageList = data.response.feedMessageResponse.messages.message;
+            if(data.response.feedMessageResponse.count == 1){
+                messageList = [data.response.feedMessageResponse.messages.message];
+            }
+            messages = messages.concat(...messageList);
             var msgLength = data.response.feedMessageResponse.messages.message.length;
             getFullSpotFeed(host, apiPath + "?start=" + (msgLength + 1), messages).then(resolve).catch(reject)
         }
