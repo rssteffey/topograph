@@ -116,13 +116,13 @@ const whitneyTrailLandmarks = [
     },
     {
         "lat": "36.5785905",
-        "lon": "-118.2921377",
+        "lon": "-118.2933377",
         "tag": "Mount Whitney Summit",
         "elev": "14,505 feet",
         "info": "The highest point in the lower 48 states.",
         "type": "peak",
         "textureName": "mountain",
-        "hoverBoost": 0.05,
+        "hoverBoost": 0.01,
         "iconname": "fa-mountain"
     },
     {

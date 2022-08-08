@@ -18,7 +18,9 @@ const ELEVATION_BASE = -2;         // Height of the map walls
 const ROUTE_HOVER = 0.01;          // Amount to lift the trail off the map (needs to be >0)
 const LANDMARK_HOVER = .01;        // Amount to lift landmark markers off the map
 const TRACK_HOVER = 0.03;          // Amount to lift tracking markers off the map
-const MOST_RECENT_BOOST = 0.01;    // Extra amount to lift most recent tracking marker above the others (ensure visibility/clickability)
+const CHECK_IN_BOOST = 0.03;        // Check-ins should be higher than other trackers (& landmarks to account for summit)
+const MOST_RECENT_BOOST = 0.035;    // Most recent tracker should always be on top for quick visibility
+
 
 const SMOOTHING_FACTOR = 0.15;     // Amount (0-1) to smooth the generated elevation data
 
@@ -87,6 +89,8 @@ const outlineMaterial = new THREE.MeshBasicMaterial( {
 } );
 
 const trackingHighlightMaterial = new THREE.MeshBasicMaterial({color: 0xdddd44});
+const trackingColor = 0x44dd44;
+const checkinColor = 0xdd8822;
 
 // Hover checks
 var raycaster, INTERSECTED, DEBUG_INTERSECTED;
@@ -312,7 +316,7 @@ function createTrackingPath(feed){
                 loc = offsetCoordinatesFromSpringHill(feed[i].lat, feed[i].lon);
             } 
 
-            createTrackingPoint(loc.lat, loc.lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length), feed[i].altitude, i == 0);
+            createTrackingPoint(loc.lat, loc.lon, feed[i].type, feed[i].timestamp, getTrackingPointMaterial(i, feed.length, feed[i].type), feed[i].altitude, i == 0);
             if(i == 0){
                 updateZone(loc.lat, loc.lon, feed[i].altitude);
             }
@@ -334,7 +338,15 @@ function createTrackingPoint(lat, lon, type, timestamp, material, altitude, isMo
     geometry.name = "Tracker~" + timestamp;
     const point = new THREE.Mesh( geometry, material );
     var loc = findVertexLocationFromLatLon(lat, lon, true);
-    var boost = isMostRecent ? MOST_RECENT_BOOST : 0;
+    var boost = 0;
+
+    if(type == "CHECK-IN"){
+        boost = CHECK_IN_BOOST;
+    }
+    if(isMostRecent){
+        boost = MOST_RECENT_BOOST;
+    }
+
     point.position.x = loc.x;
     point.position.y = loc.y + TRACK_HOVER + boost;
     point.position.z = loc.z;
@@ -824,14 +836,15 @@ function getCompassMaterial(opac){
     return compMat;
 }
 
-function getTrackingPointMaterial(index, length){
+function getTrackingPointMaterial(index, length, type){
     if(index == 0){
         return trackingHighlightMaterial;
     }
+    var colorType = type == "CHECK-IN" ? checkinColor : trackingColor;
     var opacity = 1.0 - ((index * 1.0) / length);
     var mat = new THREE.MeshBasicMaterial({
         transparent: true,
-        color: 0x44dd44,
+        color: colorType,
         opacity: opacity
     });
     return mat;
@@ -1180,7 +1193,7 @@ function humanReadableMessageType(type){
         case "MESSAGE":
             return "Message";
         default:
-            return "Tracking Point";
+            return "Check-in";
     }
 }
 

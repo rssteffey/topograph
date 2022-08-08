@@ -3,13 +3,11 @@
 const http = require('https');
 var cache = null;
 
+const apiUrl = "api.findmespot.com";
+const feedId = "Y0UR_F33D_ID_H3R3";
+const apiPath = "/spot-main-web/consumer/rest-api/2.0/public/feed/" + feedId + "/message.json";
+
 exports.handler = async (event) => {
-    
-    const feedId = "Y0UR_F33D_ID_H3R3"; //event.queryStringParameters.spotfeed if you want this as a param;
-    
-    const apiUrl = "api.findmespot.com";
-    const apiPath = "/spot-main-web/consumer/rest-api/2.0/public/feed/" + feedId + "/message.json";
-    
     // Ten minutes ago
     var cacheCheckTime = Date.now() - 600000;
     
@@ -51,7 +49,7 @@ function getFullSpotFeed(host, path, messages = []) {
         } else {
             messages = messages.concat(...data.response.feedMessageResponse.messages.message);
             var msgLength = data.response.feedMessageResponse.messages.message.length;
-            getFullSpotFeed(host, path + "?start=" + (msgLength + 1), messages).then(resolve).catch(reject)
+            getFullSpotFeed(host, apiPath + "?start=" + (msgLength + 1), messages).then(resolve).catch(reject)
         }
     }).catch(console.error));
 }
@@ -67,7 +65,15 @@ function makeSpotRequest(host, path) {
         };
         const req = http.request(options, (res) => {
           if (res.statusCode < 200 || res.statusCode >= 300) {
-                return reject(new Error('statusCode=' + res.statusCode));
+                resolve( {
+                    response: {
+                        errors: {
+                            error: {
+                                msg : "Failure to make request (code=" + res.statusCode + ")"
+                            }
+                        }
+                    }
+                })
             }
             var body = [];
             res.on('data', function(chunk) {
