@@ -117,3 +117,8 @@ The Zones concept was a last-minute addition for me, so it's the ugliest feature
  When you're on the app, try pressing `` ` `` to enter debug mode, then `z` to view your zones on the map.  Clicking around in debug mode will simulate a tracking marker zone update at that point (Although it will also simulate all tracking points as if they're offset from Spring Hill, TN to the Mt Whitney Trailhead, so you'll want to modify that bit)
 
  Zones later in the list have priority; so when you define your array, start with the largest zones and nest inward.
+
+ ## - It's Aug 12/13/14 but I don't see anything like tracking points on the map?
+
+ Look, it's tough to test a data feed coming from a very sketchy API (sometimes objects are objects, sometimes they're arrays; the pagination consistently counts 1 entry too many; requests frequently fail for no discernable reason) that ALSO requires me to walk around town to generate one new test data point every ten minutes. \
+ It's likely things are just broken now that I'm in CA away from a computer.  Sorry about that.  I'll fix it for the next mountain.
