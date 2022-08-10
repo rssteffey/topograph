@@ -27,6 +27,12 @@ html, body{
     transition: background-color 0.5s linear;
 }
 
+.help-text {
+    color: #ffffff88;
+    margin-left: 1em;
+    margin-top: 0.5em;
+}
+
 #legend.open {
     background-color: #00000099;
 }

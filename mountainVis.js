@@ -1078,7 +1078,7 @@ function collapse(event){
     if (content.style.maxHeight){
         content.style.maxHeight = null;
     } else {
-        content.style.maxHeight = "200px";
+        content.style.maxHeight = "250px";
     }
 }
 
