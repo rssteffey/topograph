@@ -151,8 +151,9 @@ function init(){
     createLandmarks();
     createCompassRose();
 
-    // Grab feed, delete old points, create new points
-    getRemoteFeedData();
+    // Grab feed, delete old points, create new points (Currently using archived data since the trip is over)
+    //getRemoteFeedData();
+    getArchivedData();
 
     animate();
 
@@ -1020,6 +1021,24 @@ function getRemoteFeedData(){
     }
 }
 
+// Default to starting time
+function getArchivedData(filterTime = null){
+    var feed = normalizeSpotFeed(archive);
+
+    var noFilter = filterTime ? false : true;
+
+    if(filterTime == null){
+        filterTime = 1660316400;
+    }
+
+    feed = feed.filter(entry => entry.timestamp < filterTime);
+    createTrackingPath(feed);
+
+    if(noFilter){
+        document.getElementById("zone-name").textContent = "Hike is complete; Drag the slider at the bottom to see it"
+    }
+}
+
 function normalizeSpotFeed(data){
     try{
         if(DEBUG){
@@ -1220,4 +1239,17 @@ function messageTypeIcon(type){
         default:
             return "fa-check";
     }
+}
+
+
+/* Archived data things (for after the trip) */
+
+window.updateDateSelection = function updateDateSelection(e){
+    // Turn 0-222 into hours 8/12 8:00 - 8/13 21:00 (Unix Time)
+    var hour0 = 1660316400; // 8am Aug 12
+    var hourSeconds = 600; // 10 minute increments (Hence the 222 values on the slider)
+    var filterTime = hour0 + (e * hourSeconds);
+    getArchivedData(filterTime);
+
+    document.getElementById("dateFilterPreview").innerHTML = formatDate(filterTime);
 }

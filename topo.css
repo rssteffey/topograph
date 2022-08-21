@@ -274,6 +274,65 @@ input:checked + .slider:before {
     border-radius: 50%;
 }
 
+/* Date Slider for Archive View */
+
+.slideContainer {
+    bottom: 1em;
+    position: fixed;
+    width: 90%;
+    margin-left: 5%;
+    text-align: center;
+    align-self: center;
+}
+
+.longSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 10px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7; 
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+  }
+  
+  .longSlider:hover {
+    opacity: 1;
+  }
+  
+  .longSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%; 
+    background: #04AA6D;
+    /* background: url('https://www.iconpacks.net/icons/2/free-sun-icon-1846-thumb.png'); */
+    background-size: 40px 40px;
+    cursor: pointer;
+  }
+  
+  .longSlider::-moz-range-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%; 
+    background: #04AA6D;
+    /* background: url('https://www.iconpacks.net/icons/2/free-sun-icon-1846-thumb.png'); */
+    background-size: 40px 40px;
+    cursor: pointer;
+  }
+
+  .dateFilter {
+    bottom: 2em;
+    margin-left: 2em;
+    font-size: 1.7em;
+    position: fixed;
+    font-family: 'Montserrat', sans-serif;
+    color: white;
+    text-shadow: 2px 2px 4px #00000099;
+  }
+
 
 /* Mobile */
 
