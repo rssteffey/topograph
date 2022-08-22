@@ -308,7 +308,6 @@ input:checked + .slider:before {
     height: 40px;
     border-radius: 50%; 
     background: #04AA6D;
-    /* background: url('https://www.iconpacks.net/icons/2/free-sun-icon-1846-thumb.png'); */
     background-size: 40px 40px;
     cursor: pointer;
   }
@@ -318,7 +317,6 @@ input:checked + .slider:before {
     height: 40px;
     border-radius: 50%; 
     background: #04AA6D;
-    /* background: url('https://www.iconpacks.net/icons/2/free-sun-icon-1846-thumb.png'); */
     background-size: 40px 40px;
     cursor: pointer;
   }
@@ -387,6 +385,33 @@ input:checked + .slider:before {
 
         .panel-header{
             padding: 0.8em 1em 0.8em 1em;
+        }
+
+        .dateFilter {
+            bottom: 3em;
+        }
+
+        .dateFilter span{
+            font-size: 2em;
+            text-shadow: 4px 4px 8px #00000099;
+        }
+
+        .slideContainer {
+            height: 30px;
+        }
+
+        .longSlider {
+            height: 20px;
+        }
+
+        .longSlider::-webkit-slider-thumb {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .longSlider::-moz-range-thumb {
+            width: 60px;
+            height: 60px;
         }
     }
 

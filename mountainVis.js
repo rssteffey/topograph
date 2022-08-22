@@ -89,6 +89,7 @@ const outlineMaterial = new THREE.MeshBasicMaterial( {
 } );
 
 const trackingHighlightMaterial = new THREE.MeshBasicMaterial({color: 0xdddd44});
+let trackingPointMaterials = new Array(500);
 const trackingColor = 0x44dd44;
 const checkinColor = 0xdd8822;
 
@@ -102,9 +103,11 @@ let startX;
 let startY;
 
 var timeoutFunction;
+var scrubLock = true;
 
 // UI
 var infoPanel, trackerPanel;
+var SCREEN_HEIGHT, SCREEN_WIDTH;
 
 init();
 
@@ -309,6 +312,11 @@ function createTrackingPath(feed){
         scene.remove(mostRecentTracker);
         mostRecentTracker = undefined; // Full disclosure, I still cannot figure out why this line is required
     }
+    scene.remove(trackersParent);
+    scene.remove(trackersOutlineParent);
+
+    // Clean up materials too
+    cleanUpTrackingMaterials();
 
     if(feed.length > 0){
         for(var i = 0; i < feed.length; i++){
@@ -851,7 +859,17 @@ function getTrackingPointMaterial(index, length, type){
         color: colorType,
         opacity: opacity
     });
+    trackingPointMaterials[index] = mat;
     return mat;
+}
+
+// Help prevent memory leaks
+function cleanUpTrackingMaterials(){
+    for(var i = trackingPointMaterials.length - 1; i >= 0; i--){
+        if(trackingPointMaterials[i] != null){
+            trackingPointMaterials[i].dispose();
+        }
+    }
 }
 
 function getZoneMaterial(color){
@@ -1018,24 +1036,6 @@ function getRemoteFeedData(){
             var feed = normalizeSpotFeed(JSON.parse(http.responseText));
             createTrackingPath(feed);
         }
-    }
-}
-
-// Default to starting time
-function getArchivedData(filterTime = null){
-    var feed = normalizeSpotFeed(archive);
-
-    var noFilter = filterTime ? false : true;
-
-    if(filterTime == null){
-        filterTime = 1660316400;
-    }
-
-    feed = feed.filter(entry => entry.timestamp < filterTime);
-    createTrackingPath(feed);
-
-    if(noFilter){
-        document.getElementById("zone-name").textContent = "Hike is complete; Drag the slider at the bottom to see it"
     }
 }
 
@@ -1244,7 +1244,35 @@ function messageTypeIcon(type){
 
 /* Archived data things (for after the trip) */
 
+// Default to starting time
+function getArchivedData(filterTime = null){
+    var feed = normalizeSpotFeed(archive);
+
+    var noFilter = filterTime ? false : true;
+
+    if(filterTime == null){
+        filterTime = 1660316400;
+    }
+
+    feed = feed.filter(entry => entry.timestamp < filterTime);
+    createTrackingPath(feed);
+
+    if(noFilter){
+        document.getElementById("zone-name").textContent = "Hike is complete; Drag the slider at the bottom to see it"
+    }
+}
+
 window.updateDateSelection = function updateDateSelection(e){
+    // Update timer (limit scrubbing refresh increments to avoid lockups)
+    const timeoutMS = 100;
+
+    if(!scrubLock){
+        return;
+    } else {
+        scrubLock = false;
+        setTimeout( scrollLockTimeout(e), timeoutMS) 
+    }
+
     // Turn 0-222 into hours 8/12 8:00 - 8/13 21:00 (Unix Time)
     var hour0 = 1660316400; // 8am Aug 12
     var hourSeconds = 600; // 10 minute increments (Hence the 222 values on the slider)
@@ -1252,4 +1280,8 @@ window.updateDateSelection = function updateDateSelection(e){
     getArchivedData(filterTime);
 
     document.getElementById("dateFilterPreview").innerHTML = formatDate(filterTime);
+}
+
+function scrollLockTimeout(e){
+    scrubLock = true;
 }
