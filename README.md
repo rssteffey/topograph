@@ -4,6 +4,8 @@ Project to display a prettied-up map of a specific hiking destination, then read
 
 I love Node, but hosting a server for this feels like overkill until I find it absolutely necessary, so some things will be done the harder way (Most notably, reading JSON blobs).  If this can stay a static HTML page on my site, it will.
 
+Demo here: [From when Shawn hiked Mt. Whitney](https://www.rssteffey.com/topograph/)
+
 ---
 
 # How to use this for your own Mt. Whitney Hike
